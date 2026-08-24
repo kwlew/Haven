@@ -1,0 +1,93 @@
+# Haven - a concise sethome plugin
+#
+# NOTE ON WORLD NAMES
+# Homes store the world by *name*, which keeps the files in plugins/Haven/homes/
+# readable and hand-editable. The trade-off: renaming or deleting a world orphans
+# every home saved in it. Those homes are kept on disk but /home will report the
+# world as missing rather than silently sending the player somewhere else.
+
+homes:
+  # Home limit for players without any haven.homes.<n> permission.
+  # Override per rank with haven.homes.5, haven.homes.10, ... (highest wins),
+  # or grant haven.homes.unlimited to remove the cap entirely.
+  default-limit: 3
+
+  # How long a pending /sethome overwrite confirmation stays valid, in seconds.
+  confirm-timeout-seconds: 15
+
+teleport:
+  # Delay before a /home teleport completes. Set to 0 for an instant teleport.
+  # Bypass with haven.bypass.warmup.
+  warmup-seconds: 3
+
+  # Minimum time between successful teleports. Set to 0 to disable.
+  # Only consumed when a teleport actually succeeds - a cancelled warmup costs nothing.
+  # Bypass with haven.bypass.cooldown.
+  cooldown-seconds: 10
+
+  # Cancel the warmup if the player moves to a different block.
+  cancel-on-move: true
+
+  # Cancel the warmup if the player takes damage.
+  # Damage fully absorbed (shield, invulnerability) does not count.
+  cancel-on-damage: true
+
+storage:
+  # How long shutdown waits for pending disk writes to finish, in seconds.
+  # Raise this only if you see "timed out flushing" warnings on stop.
+  shutdown-timeout-seconds: 10
+
+sounds:
+  # Master switch for every sound below.
+  enabled: true
+
+  # Each entry takes:
+  #   key    - any namespaced sound, including ones from a server resource pack.
+  #            Leave blank ("") to switch off just that sound.
+  #   volume - 1.0 is normal. Above 1.0 does not get louder; it increases the
+  #            distance the sound carries.
+  #   pitch  - 0.5 (an octave down) to 2.0 (an octave up).
+  #   source - which volume slider it obeys: master, music, record, weather,
+  #            block, hostile, neutral, player, ambient, voice.
+
+  # A home was saved or moved.
+  home-set:
+    key: minecraft:entity.experience_orb.pickup
+    volume: 0.7
+    pitch: 1.4
+    source: player
+
+  # A home was deleted.
+  home-deleted:
+    key: minecraft:block.wooden_button.click_on
+    volume: 0.7
+    pitch: 0.8
+    source: player
+
+  # Ticks once a second while a teleport warmup counts down.
+  warmup-tick:
+    key: minecraft:block.note_block.hat
+    volume: 0.4
+    pitch: 1.5
+    source: player
+
+  # The teleport landed.
+  teleport-success:
+    key: minecraft:entity.enderman.teleport
+    volume: 0.6
+    pitch: 1.2
+    source: player
+
+  # The warmup was interrupted by moving or taking damage.
+  teleport-cancelled:
+    key: minecraft:block.fire.extinguish
+    volume: 0.6
+    pitch: 1.2
+    source: player
+
+  # A command was refused - home limit reached, still on cooldown, no such home.
+  denied:
+    key: minecraft:block.note_block.bass
+    volume: 0.6
+    pitch: 0.7
+    source: player
