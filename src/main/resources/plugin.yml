@@ -10,10 +10,8 @@ load: POSTWORLD
 authors: [ kwlew ]
 website: https://kwlew.dev
 
-softdepend: [ PlaceholderAPI ]
+soft-depend: [ PlaceholderAPI ]
 
-# Commands are registered through Paper's Brigadier lifecycle API (see HavenCommands),
-# so there is deliberately no `commands:` block here.
 permissions:
   haven.home:
     description: Teleport to one of your homes.
@@ -28,8 +26,7 @@ permissions:
     description: List your homes.
     default: true
 
-  # haven.homes.<n> sets the home limit (highest granted value wins).
-  # It is unbounded, so the individual nodes cannot be declared here.
+  # haven.homes.<n> sets the home limit.
   haven.homes.unlimited:
     description: Bypass the home limit entirely.
     default: op
