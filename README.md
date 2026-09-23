@@ -1,31 +1,32 @@
 # Haven
 
-A concise sethome plugin for PaperMC.
+A homes plugin for Paper.
 
 Players save named locations and teleport back to them, with per-rank home limits, a cooldown,
 and a teleport warmup that cancels if they move or take damage.
 
 - **Server:** Paper 1.18.2 through 26.3
-- **Java:** 17 for Paper 1.18–1.19, 21 for 1.20–1.21.11, 25 for 26.1–26.3
+- **Java:** 17 for Paper 1.18 through 1.19, 21 for 1.20 through 1.21.11, 25 for 26.1 through 26.3
 - **Optional:** PlaceholderAPI
 
 ## Install
 
 1. Drop `Haven-<version>.jar` into `plugins/`.
 2. Start the server. `config.yml` and `messages.yml` are generated on first run.
-3. Grant permissions (see below) — the basics are on by default.
+3. Grant any additional permissions you need. The basic commands are available to everyone by default.
 
 ## Commands
 
 | Command | Aliases | Permission | Description |
 |---|---|---|---|
-| `/sethome [name]` | — | `haven.sethome` | Saves a home at your location. Defaults to `home`. Re-run to confirm an overwrite. |
-| `/home [name]` | — | `haven.home` | Teleports to a home. With no name: uses one called `home`, else your only home, else lists them. |
-| `/delhome <name>` | `/removehome` | `haven.delhome` | Deletes a home and echoes its coordinates. |
+| `/sethome [name]` | None | `haven.sethome` | Saves a home at your location. Defaults to `home`. Run it again to confirm an overwrite. |
+| `/home [name]` | None | `haven.home` | Teleports to a home. With no name, it uses a home called `home`, your only home, or shows your home list. |
+| `/delhome <name>` | `/removehome` | `haven.delhome` | Deletes a home and shows its coordinates. |
 | `/homes` | `/listhomes` | `haven.homes` | Lists your homes, grouped by world. Click a name to teleport. |
-| `/haven reload` | — | `haven.admin.reload` | Reloads `config.yml` and `messages.yml`. |
+| `/haven reload` | None | `haven.admin.reload` | Reloads `config.yml` and `messages.yml`. |
 
-Home names are 1–16 characters of `a-z`, `0-9`, `-` and `_`, and are case-insensitive.
+Home names must be 1 to 16 characters long and can contain English letters, digits, `-`, and `_`.
+Names are case insensitive.
 
 ## Permissions
 
@@ -35,25 +36,25 @@ Home names are 1–16 characters of `a-z`, `0-9`, `-` and `_`, and are case-inse
 | `haven.sethome` | everyone | Use `/sethome` |
 | `haven.delhome` | everyone | Use `/delhome` |
 | `haven.homes` | everyone | Use `/homes` |
-| `haven.homes.<n>` | — | Sets the home limit to `<n>`. Highest granted value wins. |
+| `haven.homes.<n>` | None | Sets the home limit to `<n>`. Highest granted value wins. |
 | `haven.homes.unlimited` | op | Removes the home limit |
 | `haven.bypass.warmup` | op | Teleport instantly |
 | `haven.bypass.cooldown` | op | Teleport without waiting |
 | `haven.admin.reload` | op | Use `/haven reload` |
 
-Grant limits per rank, e.g. `haven.homes.5` for members and `haven.homes.15` for donors. Players
-with no such node get `homes.default-limit` from the config. Lowering someone's limit never deletes
-homes they already have — it only stops them making new ones.
+For example, give members `haven.homes.5` and donors `haven.homes.15`. Players without a limit
+permission use `homes.default-limit` from the config. If you lower a player's limit, their existing
+homes remain available. They cannot create another home until they are below the new limit.
 
 ## Configuration
 
 `config.yml` covers home limits, the warmup and cooldown, storage, and sounds. Every option is
 commented in the generated file.
 
-Sounds are fully customizable — each event takes a namespaced `key` (resource-pack sounds work),
-`volume`, `pitch`, and `source`. Set a `key` to `""` to silence one event, or `sounds.enabled: false`
-for all of them. Configurable events: `home-set`, `home-deleted`, `warmup-tick`,
-`teleport-success`, `teleport-cancelled`, `denied`.
+Each sound event has a namespaced `key`, `volume`, `pitch`, and `source`. Custom resource pack sounds
+work too. Set a `key` to `""` to silence one event, or set `sounds.enabled: false` to turn off all
+sounds. The events are `home-set`, `home-deleted`, `warmup-tick`, `teleport-success`,
+`teleport-cancelled`, and `denied`.
 
 Haven's command and teleport feedback lives in `messages.yml` in
 [MiniMessage](https://docs.advntr.dev/minimessage/format.html) format. Setting a message to `""`
@@ -62,9 +63,8 @@ permission denials before Haven receives the command.
 
 ## PlaceholderAPI
 
-Available when PlaceholderAPI is installed. Haven's test server uses PlaceholderAPI 2.12.3;
-use a PlaceholderAPI build compatible with your Paper version. All placeholders require the
-player to be online.
+Install a PlaceholderAPI build compatible with your Paper version to use these placeholders.
+The player must be online.
 
 | Placeholder | Result |
 |---|---|
@@ -75,19 +75,18 @@ player to be online.
 
 ## Storage
 
-Homes are stored as YAML, one file per player, in `plugins/Haven/homes/<uuid>.yml`. The files are
-meant to be readable and hand-editable. Writes happen on a background thread and are atomic, so a
-crash mid-save cannot truncate a player's homes.
+Haven stores one YAML file per player in `plugins/Haven/homes/<uuid>.yml`. You can edit these files
+while the server is stopped. Writes run on a background thread and are atomic, so a crash during
+a save cannot truncate a player's homes.
 
 Reads share the write queue, so a fast reconnect sees the player's latest queued save. If a file
 cannot be parsed, Haven refuses the login and leaves it untouched for an administrator to repair.
 If a valid temporary file can recover it, Haven saves the damaged main file with a
-`.corrupt-<id>` suffix before restoring the temporary file. A file with a newer schema is also
-left untouched rather than being rewritten by an older Haven build.
+`.corrupt-<id>` suffix before restoring the temporary file. Haven also leaves files with a newer
+schema untouched.
 
-Because homes record the world by **name**, renaming or deleting a world orphans the homes saved in
-it. Those homes stay on disk, and `/home` reports the world as missing rather than sending the
-player somewhere unexpected.
+Homes record the world by **name**. If you rename or delete a world, homes saved there stay on disk.
+Players trying to use those homes see a message that the world is unavailable.
 
 ## Metrics
 
@@ -108,7 +107,7 @@ server with `./gradlew runServer -PpaperVersion=1.18.2 -PpaperJavaVersion=17`. I
 version locally first. Each Paper version has its own `run/<version>/` directory so worlds are
 never opened by an older server.
 
-Run a startup, command-registration, reload, and PlaceholderAPI smoke test with
-`python3 scripts/smoke-paper.py 1.18.2 17`. The compatibility workflow runs this check across
-the supported version range. Before publishing, test `/sethome`, `/home`, `/delhome`, warmup
-cancellation, cooldown, and reconnect persistence with a real player on both endpoint versions.
+Use `python3 scripts/smoke-paper.py 1.18.2 17` to check startup, command registration, reload,
+and PlaceholderAPI. The compatibility workflow runs this check across the supported version range.
+Before publishing, test `/sethome`, `/home`, `/delhome`, warmup cancellation, cooldown, and reconnect
+persistence with a real player on both endpoint versions.
