@@ -12,6 +12,8 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.logging.Level;
+
 /**
  * Loads a player's homes before they exist as a {@link org.bukkit.entity.Player}, installs them on
  * join, and flushes them on quit.
@@ -42,7 +44,7 @@ public class ConnectionListener implements Listener, LifecycleComponent {
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onPreLogin(AsyncPlayerPreLoginEvent event) {
         if (event.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
             // Another plugin rejected them; don't read a file nobody will claim.
@@ -50,7 +52,13 @@ public class ConnectionListener implements Listener, LifecycleComponent {
             return;
         }
 
-        homeManager.preload(event.getUniqueId(), event.getName());
+        try {
+            homeManager.preload(event.getUniqueId(), event.getName());
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.SEVERE, "Could not load homes for " + event.getUniqueId(), e);
+            event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER,
+                    "Haven could not safely load your homes. Please contact a server administrator.");
+        }
     }
 
     // There is deliberately no PlayerLoginEvent handler for connections denied *after* pre-login.
@@ -60,7 +68,13 @@ public class ConnectionListener implements Listener, LifecycleComponent {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
-        homeManager.install(event.getPlayer());
+        try {
+            homeManager.install(event.getPlayer());
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.SEVERE,
+                    "Could not install homes for " + event.getPlayer().getUniqueId(), e);
+            event.getPlayer().kickPlayer("Haven could not safely load your homes. Please contact a server administrator.");
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

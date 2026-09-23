@@ -42,17 +42,17 @@ public class PlaceholderAPI extends PlaceholderExpansion {
     @Override
     public @NotNull String getIdentifier() {
         // Lowercase: this is the %<identifier>_...% prefix, not a display name.
-        return plugin.getPluginMeta().getName().toLowerCase(Locale.ROOT);
+        return plugin.getDescription().getName().toLowerCase(Locale.ROOT);
     }
 
     @Override
     public @NotNull String getAuthor() {
-        return String.join(", ", plugin.getPluginMeta().getAuthors());
+        return String.join(", ", plugin.getDescription().getAuthors());
     }
 
     @Override
     public @NotNull String getVersion() {
-        return plugin.getPluginMeta().getVersion();
+        return plugin.getDescription().getVersion();
     }
 
     @Override

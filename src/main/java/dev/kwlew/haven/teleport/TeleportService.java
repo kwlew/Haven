@@ -43,6 +43,7 @@ public class TeleportService implements LifecycleComponent {
     private final Sounds sounds;
 
     private final Map<UUID, Warmup> warmups = new HashMap<>();
+    private final Map<UUID, Object> inFlight = new HashMap<>();
 
     public TeleportService(JavaPlugin plugin,
                            HavenConfig config,
@@ -62,7 +63,7 @@ public class TeleportService implements LifecycleComponent {
     public void teleport(Player player, Home home) {
         UUID id = player.getUniqueId();
 
-        if (warmups.containsKey(id)) {
+        if (warmups.containsKey(id) || inFlight.containsKey(id)) {
             messages.send(player, "teleport.already-teleporting");
             sounds.play(player, HavenSound.DENIED);
             return;
@@ -98,7 +99,8 @@ public class TeleportService implements LifecycleComponent {
             return;
         }
 
-        messages.send(player, "teleport.warmup-start",
+        messages.send(player, config.cancelOnMove()
+                        ? "teleport.warmup-start" : "teleport.warmup-start-can-move",
                 Placeholder.unparsed("name", home.name()),
                 Placeholder.unparsed("seconds", Integer.toString(warmupSeconds)));
 
@@ -149,27 +151,40 @@ public class TeleportService implements LifecycleComponent {
     }
 
     private void complete(Player player, Home home, Location destination) {
-        player.teleportAsync(destination, PlayerTeleportEvent.TeleportCause.PLUGIN)
-                .thenAccept(success -> onMain(() -> {
-                    if (!success) {
-                        messages.send(player, "teleport.failed");
-                        sounds.play(player, HavenSound.DENIED);
-                        return;
-                    }
+        UUID id = player.getUniqueId();
+        Object operation = new Object();
+        inFlight.put(id, operation);
 
-                    // Cooldown.
-                    markTeleported(player);
+        try {
+            player.teleportAsync(destination, PlayerTeleportEvent.TeleportCause.PLUGIN)
+                    .whenComplete((success, error) -> onMain(() -> {
+                        // A quit can invalidate this operation; a later login may already have
+                        // started another teleport under the same UUID.
+                        if (!inFlight.remove(id, operation) || !player.isOnline()) {
+                            return;
+                        }
+                        if (error != null) {
+                            plugin.getLogger().log(Level.WARNING,
+                                    "Teleport to home '" + home.name() + "' failed for " + player.getName(), error);
+                        }
+                        if (error != null || !Boolean.TRUE.equals(success)) {
+                            messages.send(player, "teleport.failed");
+                            sounds.play(player, HavenSound.DENIED);
+                            return;
+                        }
 
-                    messages.send(player, "teleport.success",
-                            Placeholder.unparsed("name", home.name()));
-                    sounds.play(player, HavenSound.TELEPORT_SUCCESS);
-                }))
-                .exceptionally(error -> {
-                    plugin.getLogger().log(Level.WARNING,
-                            "Teleport to home '" + home.name() + "' failed for " + player.getName(), error);
-                    onMain(() -> messages.send(player, "teleport.failed"));
-                    return null;
-                });
+                        markTeleported(player);
+                        messages.send(player, "teleport.success",
+                                Placeholder.unparsed("name", home.name()));
+                        sounds.play(player, HavenSound.TELEPORT_SUCCESS);
+                    }));
+        } catch (RuntimeException error) {
+            inFlight.remove(id, operation);
+            plugin.getLogger().log(Level.WARNING,
+                    "Could not start teleport to home '" + home.name() + "' for " + player.getName(), error);
+            messages.send(player, "teleport.failed");
+            sounds.play(player, HavenSound.DENIED);
+        }
     }
 
     private void markTeleported(Player player) {
@@ -210,6 +225,7 @@ public class TeleportService implements LifecycleComponent {
      */
     public void cancelSilently(UUID id) {
         clear(id);
+        inFlight.remove(id);
     }
 
     private void cancel(Player player, String messageKey) {
@@ -242,6 +258,7 @@ public class TeleportService implements LifecycleComponent {
         }
 
         warmups.clear();
+        inFlight.clear();
     }
 
     /**

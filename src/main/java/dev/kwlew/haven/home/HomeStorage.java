@@ -14,7 +14,8 @@ public interface HomeStorage extends LifecycleComponent {
 
     /**
      * Reads a player's homes, blocking the calling thread. Returns an empty container when the
-     * player has no file yet. Safe to call off the main thread - and normally is, from pre-login.
+     * player has no file yet. Throws if an existing file cannot be loaded without losing data.
+     * Safe to call off the main thread - and normally is, from pre-login.
      */
     PlayerHomes.Snapshot load(UUID owner, String lastKnownName);
 

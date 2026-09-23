@@ -1,9 +1,5 @@
 package dev.kwlew.haven.command;
 
-import com.mojang.brigadier.Command;
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.tree.LiteralCommandNode;
 import dev.kwlew.haven.config.HavenConfig;
 import dev.kwlew.haven.home.Home;
 import dev.kwlew.haven.home.HomeLimits;
@@ -12,9 +8,8 @@ import dev.kwlew.haven.home.PlayerHomes;
 import dev.kwlew.haven.message.Messages;
 import dev.kwlew.haven.sound.HavenSound;
 import dev.kwlew.haven.sound.Sounds;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
-import io.papermc.paper.command.brigadier.Commands;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 public class SetHomeCommand extends PlayerCommand {
@@ -42,26 +37,25 @@ public class SetHomeCommand extends PlayerCommand {
         this.sounds = sounds;
     }
 
-    public LiteralCommandNode<CommandSourceStack> node() {
-        return Commands.literal("sethome")
-                .requires(source -> source.getSender().hasPermission("haven.sethome"))
-                .executes(context -> run(context, DEFAULT_HOME))
-                .then(Commands.argument("name", StringArgumentType.word())
-                        .executes(context -> run(context, StringArgumentType.getString(context, "name"))))
-                .build();
+    public boolean execute(CommandSender sender, String[] args) {
+        if (args.length > 1) {
+            return false;
+        }
+        run(sender, args.length == 0 ? DEFAULT_HOME : args[0]);
+        return true;
     }
 
-    private int run(CommandContext<CommandSourceStack> context, String rawName) {
-        Player player = requirePlayer(context);
+    private void run(CommandSender sender, String rawName) {
+        Player player = requirePlayer(sender);
         if (player == null) {
-            return 0;
+            return;
         }
 
         String name = Home.normalize(rawName);
         if (!Home.isValidName(name)) {
             messages.send(player, "home.invalid-name");
             sounds.play(player, HavenSound.DENIED);
-            return 0;
+            return;
         }
 
         PlayerHomes homes = homeManager.homesOf(player);
@@ -75,7 +69,7 @@ public class SetHomeCommand extends PlayerCommand {
                     Placeholder.unparsed("count", Integer.toString(homes.count())),
                     Placeholder.unparsed("max", limits.describe(limit)));
             sounds.play(player, HavenSound.DENIED);
-            return 0;
+            return;
         }
 
         if (exists && !confirmations.confirm(player.getUniqueId(), name)) {
@@ -83,7 +77,7 @@ public class SetHomeCommand extends PlayerCommand {
                     Placeholder.unparsed("name", name),
                     Placeholder.unparsed("seconds", Integer.toString(config.confirmTimeoutSeconds())));
             sounds.play(player, HavenSound.DENIED);
-            return 0;
+            return;
         }
 
         homes.put(Home.of(name, player.getLocation()));
@@ -95,6 +89,5 @@ public class SetHomeCommand extends PlayerCommand {
                 Placeholder.unparsed("count", Integer.toString(homes.count())),
                 Placeholder.unparsed("max", limits.describe(limit)));
 
-        return Command.SINGLE_SUCCESS;
     }
 }

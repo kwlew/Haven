@@ -1,14 +1,13 @@
 package dev.kwlew.haven.command;
 
-import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.suggestion.SuggestionProvider;
-import com.mojang.brigadier.suggestion.Suggestions;
-import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import dev.kwlew.haven.home.HomeManager;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.List;
+import java.util.Locale;
 
 /**
  * Suggests the sender's own home names.
@@ -16,7 +15,7 @@ import java.util.concurrent.CompletableFuture;
  * Reads only the in-memory cache and returns empty for an uncached player - completion must never
  * block on disk.
  */
-public class HomeSuggestions implements SuggestionProvider<CommandSourceStack> {
+public class HomeSuggestions implements TabCompleter {
 
     private final HomeManager homeManager;
 
@@ -25,18 +24,14 @@ public class HomeSuggestions implements SuggestionProvider<CommandSourceStack> {
     }
 
     @Override
-    public CompletableFuture<Suggestions> getSuggestions(CommandContext<CommandSourceStack> context,
-                                                         SuggestionsBuilder builder) {
-        if (context.getSource().getSender() instanceof Player player) {
-            String typed = builder.getRemainingLowerCase();
-
-            for (String name : homeManager.cachedNames(player)) {
-                if (name.startsWith(typed)) {
-                    builder.suggest(name);
-                }
-            }
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (!(sender instanceof Player player) || args.length != 1 || !sender.hasPermission(command.getPermission())) {
+            return List.of();
         }
 
-        return builder.buildFuture();
+        String typed = args[0].toLowerCase(Locale.ROOT);
+        return homeManager.cachedNames(player).stream()
+                .filter(name -> name.startsWith(typed))
+                .toList();
     }
 }

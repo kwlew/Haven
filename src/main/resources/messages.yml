@@ -6,7 +6,6 @@
 prefix: "<gradient:#7aa2f7:#bb9af7><bold>Haven</bold></gradient> <dark_gray>» </dark_gray>"
 
 general:
-  no-permission: "<prefix><red>You don't have permission to do that."
   players-only: "<prefix><red>That command can only be used by a player."
 
 home:
@@ -15,30 +14,30 @@ home:
   overwrite-confirm: "<prefix><yellow>Home <white><name></white> already exists. <gray>Run <white>/sethome <name></white> again within <white><seconds></white>s to move it here."
   deleted: "<prefix><gray>Deleted home <white><name></white> <dark_gray>(<world> <x>, <y>, <z>)"
   not-found: "<prefix><red>You have no home named <white><name></white>."
-  invalid-name: "<prefix><red>Home names must be 1-16 characters, using only letters, numbers, <white>-</white> and <white>_</white>."
-  limit-reached: "<prefix><red>You've used all your homes. <gray>(<count>/<max>)"
+  invalid-name: "<prefix><red>Home names must be 1-16 characters: English letters, digits, <white>-</white>, or <white>_</white>."
+  limit-reached: "<prefix><red>Home limit reached. <gray>(<count>/<max>)"
   # The list groups homes by world. <homes> is the joined, clickable set of names for that world.
   list-header: "<prefix><gray>Your homes <dark_gray>(<white><count><dark_gray>/<white><max><dark_gray>)"
   list-world: "<dark_gray>  <white><world> <dark_gray>» <homes>"
-  # The click-to-teleport action is attached in code, not here: MiniMessage does not expand
-  # placeholders inside a click tag's argument, so '/home <name>' would stay literal.
-  # Hover text is re-parsed as a component, so placeholders there work normally.
   list-entry: "<hover:show_text:'<gray>Click to teleport to <white><name><newline><dark_gray><x>, <y>, <z><newline><dark_gray>Created <created>'><aqua><name></aqua></hover>"
   list-separator: "<dark_gray>, "
-  list-empty: "<prefix><gray>You have no homes yet. Use <white>/sethome</white> to make one."
+  list-empty: "<prefix><gray>You have no homes yet. Use <white>/sethome</white> to create one."
 
 teleport:
-  warmup-start: "<prefix><gray>Teleporting to <white><name></white> in <white><seconds></white>s. <dark_gray>Don't move."
+  # Used when moving to another block cancels the warmup.
+  warmup-start: "<prefix><gray>Teleporting to <white><name></white> in <white><seconds></white>s. <dark_gray>Stay still."
+  # Used when teleport.cancel-on-move is false.
+  warmup-start-can-move: "<prefix><gray>Teleporting to <white><name></white> in <white><seconds></white>s."
   success: "<prefix><gray>Welcome to <white><name></white>."
-  cancelled-move: "<prefix><red>Teleport cancelled - you moved."
-  cancelled-damage: "<prefix><red>Teleport cancelled - you took damage."
-  cancelled-shutdown: "<prefix><red>Teleport cancelled - the server is shutting down."
+  cancelled-move: "<prefix><red>Teleport cancelled: you moved."
+  cancelled-damage: "<prefix><red>Teleport cancelled: you took damage."
+  cancelled-shutdown: "<prefix><red>Teleport cancelled: the server is shutting down."
   already-teleporting: "<prefix><red>You're already teleporting."
-  in-vehicle: "<prefix><red>You can't teleport while riding something."
+  in-vehicle: "<prefix><red>Leave your vehicle before teleporting."
   cooldown: "<prefix><red>You must wait <white><seconds></white>s before teleporting again."
-  world-missing: "<prefix><red>The world <white><world></white> for home <white><name></white> is no longer loaded."
+  world-missing: "<prefix><red>The world <white><world></white> for home <white><name></white> is unavailable."
   failed: "<prefix><red>Teleport failed. Try again in a moment."
 
 admin:
   reloaded: "<prefix><green>Configuration reloaded."
-  reload-failed: "<prefix><red>Reload failed - see the console for details."
+  reload-failed: "<prefix><red>Reload failed. Check the console for details."

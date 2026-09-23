@@ -1,18 +1,15 @@
 package dev.kwlew.haven.command;
 
-import com.mojang.brigadier.Command;
-import com.mojang.brigadier.tree.LiteralCommandNode;
 import dev.kwlew.haven.home.Home;
 import dev.kwlew.haven.home.HomeLimits;
 import dev.kwlew.haven.home.HomeManager;
 import dev.kwlew.haven.home.PlayerHomes;
 import dev.kwlew.haven.message.Messages;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
-import io.papermc.paper.command.brigadier.Commands;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.time.Instant;
@@ -38,19 +35,15 @@ public class HomesCommand extends PlayerCommand {
         this.limits = limits;
     }
 
-    public LiteralCommandNode<CommandSourceStack> node() {
-        return Commands.literal("homes")
-                .requires(source -> source.getSender().hasPermission("haven.homes"))
-                .executes(context -> {
-                    Player player = requirePlayer(context);
-                    if (player == null) {
-                        return 0;
-                    }
-
-                    sendList(player);
-                    return Command.SINGLE_SUCCESS;
-                })
-                .build();
+    public boolean execute(CommandSender sender, String[] args) {
+        if (args.length != 0) {
+            return false;
+        }
+        Player player = requirePlayer(sender);
+        if (player != null) {
+            sendList(player);
+        }
+        return true;
     }
 
     /**

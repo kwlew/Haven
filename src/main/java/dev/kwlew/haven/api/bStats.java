@@ -1,6 +1,5 @@
 package dev.kwlew.haven.api;
 
-import dev.kwlew.haven.COLORS;
 import dev.kwlew.haven.config.HavenConfig;
 import dev.kwlew.haven.globals.BuildINFO;
 import dev.kwlew.haven.home.HomeManager;
@@ -58,7 +57,7 @@ public class bStats implements LifecycleComponent {
         snapshotTask = Bukkit.getScheduler().runTaskTimer(
                 plugin, this::snapshot, SNAPSHOT_INTERVAL_TICKS, SNAPSHOT_INTERVAL_TICKS);
 
-        plugin.getLogger().info(COLORS.ANSI_GREEN + "bStats metrics enabled." + COLORS.ANSI_RESET);
+        plugin.getLogger().info("bStats metrics enabled.");
     }
 
     @Override

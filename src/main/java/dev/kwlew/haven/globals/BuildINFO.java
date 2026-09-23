@@ -5,7 +5,7 @@ package dev.kwlew.haven.globals;
  * <p>
  * Name, version and authors are deliberately <em>not</em> here - they live in
  * {@code plugin.yml} (templated from {@code gradle.properties} at build time) and are read at
- * runtime through {@code plugin.getPluginMeta()}. Duplicating them as literals meant two sources
+ * runtime through {@code plugin.getDescription()}. Duplicating them as literals meant two sources
  * of truth that drift the first time one is bumped without the other.
  */
 public final class BuildINFO {

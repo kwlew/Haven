@@ -1,6 +1,5 @@
 package dev.kwlew.haven.api.papi;
 
-import dev.kwlew.haven.COLORS;
 import dev.kwlew.haven.home.HomeLimits;
 import dev.kwlew.haven.home.HomeManager;
 import dev.kwlew.haven.kernel.LifecycleComponent;
@@ -34,8 +33,7 @@ public class PlaceholderAPIHook implements LifecycleComponent {
     @Override
     public void start() {
         if (!plugin.getServer().getPluginManager().isPluginEnabled(PLACEHOLDER_API)) {
-            plugin.getLogger().info(COLORS.ANSI_CYAN + PLACEHOLDER_API + COLORS.ANSI_RESET
-                    + " was " + COLORS.ANSI_RED + "not found." + COLORS.ANSI_RESET);
+            plugin.getLogger().info(PLACEHOLDER_API + " was not found.");
             return;
         }
 
@@ -48,8 +46,7 @@ public class PlaceholderAPIHook implements LifecycleComponent {
 
         expansion = candidate;
 
-        plugin.getLogger().info(COLORS.ANSI_CYAN + PLACEHOLDER_API + COLORS.ANSI_GREEN
-                + " hooked." + COLORS.ANSI_RESET);
+        plugin.getLogger().info(PLACEHOLDER_API + " hooked.");
     }
 
     @Override

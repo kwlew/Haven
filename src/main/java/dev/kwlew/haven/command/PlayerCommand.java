@@ -1,8 +1,6 @@
 package dev.kwlew.haven.command;
 
-import com.mojang.brigadier.context.CommandContext;
 import dev.kwlew.haven.message.Messages;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -21,9 +19,7 @@ public abstract class PlayerCommand {
      * Returns the sender as a player, or {@code null} after messaging a non-player sender. Console
      * reaching these commands is expected, not exceptional - it must never throw.
      */
-    protected Player requirePlayer(CommandContext<CommandSourceStack> context) {
-        CommandSender sender = context.getSource().getSender();
-
+    protected Player requirePlayer(CommandSender sender) {
         if (sender instanceof Player player) {
             return player;
         }

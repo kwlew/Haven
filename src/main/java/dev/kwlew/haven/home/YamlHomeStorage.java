@@ -1,6 +1,7 @@
 package dev.kwlew.haven.home;
 
 import dev.kwlew.haven.config.HavenConfig;
+import dev.kwlew.haven.kernel.Inject;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -13,40 +14,56 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.IntSupplier;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Stores each player's homes in {@code plugins/Haven/homes/<uuid>.yml}, one file per player so a
  * single save never rewrites everyone's data.
  * <p>
- * Writes run on a private single-threaded executor rather than the Bukkit scheduler. Bukkit
+ * Reads and writes run on a private single-threaded executor rather than the Bukkit scheduler. Bukkit
  * cancels queued plugin tasks at disable and forbids scheduling from {@code onDisable}, so a save
  * queued moments before shutdown would be dropped silently - unacceptable for a plugin whose only
- * job is persisting locations. A single thread also gives FIFO ordering, which removes any chance
- * of two writes for the same player interleaving.
+ * job is persisting locations. FIFO ordering also makes a fast reconnect observe the quit save.
  */
 public class YamlHomeStorage implements HomeStorage {
 
     private static final int SCHEMA_VERSION = 1;
 
-    private final JavaPlugin plugin;
-    private final HavenConfig config;
+    private final Logger logger;
+    private final IntSupplier shutdownTimeoutSeconds;
     private final File directory;
     private final ExecutorService executor;
 
     private volatile boolean closing;
 
+    @Inject
     public YamlHomeStorage(JavaPlugin plugin, HavenConfig config) {
-        this.plugin = plugin;
-        this.config = config;
-        this.directory = new File(plugin.getDataFolder(), "homes");
-        this.executor = Executors.newSingleThreadExecutor(runnable -> {
+        this(plugin.getDataFolder().toPath().resolve("homes"), plugin.getLogger(),
+                config::shutdownTimeoutSeconds, newIoExecutor());
+    }
+
+    YamlHomeStorage(Path directory, Logger logger, IntSupplier shutdownTimeoutSeconds,
+                    ExecutorService executor) {
+        this.logger = logger;
+        this.shutdownTimeoutSeconds = shutdownTimeoutSeconds;
+        this.directory = directory.toFile();
+        this.executor = executor;
+    }
+
+    private static ExecutorService newIoExecutor() {
+        return Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, "Haven-IO");
             // Non-daemon on purpose: pending writes must finish even if the JVM is winding down.
             thread.setDaemon(false);
@@ -63,17 +80,40 @@ public class YamlHomeStorage implements HomeStorage {
 
     @Override
     public PlayerHomes.Snapshot load(UUID owner, String lastKnownName) {
+        // Reads share the save queue. A player who reconnects immediately after quitting must
+        // observe the save queued by PlayerQuitEvent, not the previous version on disk.
+        Future<PlayerHomes.Snapshot> read;
+        try {
+            read = executor.submit(() -> loadFromDisk(owner, lastKnownName));
+        } catch (RejectedExecutionException e) {
+            throw new IllegalStateException("Storage is closing; cannot load homes for " + owner, e);
+        }
+
+        try {
+            return read.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while loading homes for " + owner, e);
+        } catch (ExecutionException e) {
+            throw new IllegalStateException("Could not load homes for " + owner, e.getCause());
+        }
+    }
+
+    private PlayerHomes.Snapshot loadFromDisk(UUID owner, String lastKnownName) {
         YamlConfiguration yaml = readOrRecover(owner);
 
         if (yaml == null) {
             return new PlayerHomes.Snapshot(owner, lastKnownName, 0L, List.of());
         }
 
-        int schema = yaml.getInt("schema-version", SCHEMA_VERSION);
-        if (schema > SCHEMA_VERSION) {
-            plugin.getLogger().warning("Home file for " + owner + " uses schema v" + schema
-                    + " but this build understands v" + SCHEMA_VERSION
-                    + ". Reading anyway; unknown fields will be dropped on the next save.");
+        Object schemaValue = yaml.get("schema-version");
+        if (!(schemaValue instanceof Number schemaNumber)) {
+            throw new IllegalStateException("Home file for " + owner + " has no valid schema version");
+        }
+        double schema = schemaNumber.doubleValue();
+        if (schema != SCHEMA_VERSION) {
+            throw new IllegalStateException("Home file for " + owner + " uses schema v" + schema
+                    + "; this build supports only v" + SCHEMA_VERSION);
         }
 
         // Prefer the name the caller supplied - it's current; the stored one may be a rename ago.
@@ -92,43 +132,64 @@ public class YamlHomeStorage implements HomeStorage {
         List<Home> homes = new ArrayList<>();
 
         if (homesSection == null) {
+            if (yaml.isSet("homes")) {
+                throw new IllegalStateException("Homes for " + owner + " are not a YAML section");
+            }
             return homes;
         }
 
+        Set<String> seen = new HashSet<>();
         for (String key : homesSection.getKeys(false)) {
             ConfigurationSection entry = homesSection.getConfigurationSection(key);
             String name = Home.normalize(key);
 
             if (entry == null) {
-                continue;
+                throw new IllegalStateException("Home '" + key + "' for " + owner + " is not a section");
             }
 
             String world = entry.getString("world");
 
-            // Skip rather than fail: one hand-edited bad entry must not cost a player every home.
             if (!Home.isValidName(name)) {
-                plugin.getLogger().warning("Skipping home with invalid name '" + key + "' for " + owner);
-                continue;
+                throw new IllegalStateException("Invalid home name '" + key + "' for " + owner);
+            }
+            if (!seen.add(name)) {
+                throw new IllegalStateException("Duplicate home name '" + key + "' for " + owner);
             }
 
             if (world == null || world.isBlank()) {
-                plugin.getLogger().warning("Skipping home '" + name + "' for " + owner + ": no world set");
-                continue;
+                throw new IllegalStateException("Home '" + name + "' for " + owner + " has no world");
+            }
+
+            double x = coordinate(entry, "x", name, owner);
+            double y = coordinate(entry, "y", name, owner);
+            double z = coordinate(entry, "z", name, owner);
+            double yaw = coordinate(entry, "yaw", name, owner);
+            double pitch = coordinate(entry, "pitch", name, owner);
+            if (!Float.isFinite((float) yaw) || !Float.isFinite((float) pitch)) {
+                throw new IllegalStateException("Home '" + name + "' for " + owner
+                        + " has an invalid rotation");
             }
 
             homes.add(new Home(
                     name,
                     world,
-                    entry.getDouble("x"),
-                    entry.getDouble("y"),
-                    entry.getDouble("z"),
-                    (float) entry.getDouble("yaw"),
-                    (float) entry.getDouble("pitch"),
+                    x, y, z,
+                    (float) yaw,
+                    (float) pitch,
                     entry.getLong("created")
             ));
         }
 
         return homes;
+    }
+
+    private double coordinate(ConfigurationSection entry, String field, String name, UUID owner) {
+        Object value = entry.get(field);
+        if (!(value instanceof Number number) || !Double.isFinite(number.doubleValue())) {
+            throw new IllegalStateException("Home '" + name + "' for " + owner
+                    + " has an invalid " + field + " coordinate");
+        }
+        return number.doubleValue();
     }
 
     /**
@@ -145,15 +206,31 @@ public class YamlHomeStorage implements HomeStorage {
         }
 
         if (file.isFile()) {
-            plugin.getLogger().severe("Home file for " + owner + " is unreadable; trying recovery.");
+            logger.severe("Home file for " + owner + " is unreadable; trying recovery.");
         }
 
         parsed = tryParse(temp);
         if (parsed != null) {
-            plugin.getLogger().warning("Recovered homes for " + owner + " from " + temp.getName());
+            try {
+                if (file.isFile()) {
+                    Path quarantine = file.toPath().resolveSibling(file.getName() + ".corrupt-" + UUID.randomUUID());
+                    Files.move(file.toPath(), quarantine);
+                    logger.severe("Preserved unreadable homes for " + owner
+                            + " as " + quarantine.getFileName());
+                }
+                Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                throw new IllegalStateException("Could not recover home file for " + owner, e);
+            }
+            logger.warning("Recovered homes for " + owner + " from " + temp.getName());
+            return parsed;
         }
 
-        return parsed;
+        if (file.isFile() || temp.isFile()) {
+            throw new IllegalStateException("Home file for " + owner
+                    + " is unreadable; original files were left untouched");
+        }
+        return null;
     }
 
     private YamlConfiguration tryParse(File file) {
@@ -167,7 +244,7 @@ public class YamlHomeStorage implements HomeStorage {
             yaml.load(file);
             return yaml;
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Could not parse " + file.getName(), e);
+            logger.log(Level.WARNING, "Could not parse " + file.getName(), e);
             return null;
         }
     }
@@ -175,7 +252,7 @@ public class YamlHomeStorage implements HomeStorage {
     @Override
     public void save(PlayerHomes.Snapshot snapshot) {
         if (closing) {
-            plugin.getLogger().warning("Dropping save for " + snapshot.owner() + ": storage is closing.");
+            logger.warning("Dropping save for " + snapshot.owner() + ": storage is closing.");
             return;
         }
 
@@ -184,11 +261,11 @@ public class YamlHomeStorage implements HomeStorage {
                 try {
                     write(snapshot);
                 } catch (Exception e) {
-                    plugin.getLogger().log(Level.SEVERE, "Failed to save homes for " + snapshot.owner(), e);
+                    logger.log(Level.SEVERE, "Failed to save homes for " + snapshot.owner(), e);
                 }
             });
         } catch (RejectedExecutionException e) {
-            plugin.getLogger().log(Level.SEVERE, "Storage rejected save for " + snapshot.owner(), e);
+            logger.log(Level.SEVERE, "Storage rejected save for " + snapshot.owner(), e);
         }
     }
 
@@ -235,8 +312,8 @@ public class YamlHomeStorage implements HomeStorage {
         try {
             // Blocking the main thread here is correct: onDisable is exactly when we must not
             // return before player data has hit disk.
-            if (!executor.awaitTermination(config.shutdownTimeoutSeconds(), TimeUnit.SECONDS)) {
-                plugin.getLogger().severe("Timed out flushing home data - some writes may be lost.");
+            if (!executor.awaitTermination(shutdownTimeoutSeconds.getAsInt(), TimeUnit.SECONDS)) {
+                logger.severe("Timed out flushing home data - some writes may be lost.");
                 executor.shutdownNow();
             }
         } catch (InterruptedException e) {
