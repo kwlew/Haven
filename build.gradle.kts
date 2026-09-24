@@ -10,8 +10,14 @@ repositories {
     maven("https://repo.extendedclip.com/releases/")
 }
 
+val brigadierSourceSet = sourceSets.create("brigadier") {
+    java.srcDir("src/brigadier/java")
+    compileClasspath += sourceSets.main.get().output
+}
+
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.18.2-R0.1-SNAPSHOT")
+    add("brigadierCompileOnly", "io.papermc.paper:paper-api:1.20.6-R0.1-SNAPSHOT")
     implementation("org.bstats:bstats-bukkit:3.2.1")
     compileOnly("me.clip:placeholderapi:2.12.3")
 
@@ -28,6 +34,10 @@ tasks {
 
     compileTestJava {
         options.release = 17
+    }
+
+    named<JavaCompile>(brigadierSourceSet.compileJavaTaskName) {
+        options.release = 21
     }
 
     jar {
@@ -58,6 +68,7 @@ tasks {
     }
 
     shadowJar {
+        from(brigadierSourceSet.output)
         archiveClassifier.set("")
         configurations = project.configurations.runtimeClasspath.map { setOf(it) }
 

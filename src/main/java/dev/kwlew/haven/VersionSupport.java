@@ -11,6 +11,16 @@ public final class VersionSupport {
     private VersionSupport() {}
 
     public static boolean supports(String bukkitVersion) {
+        return isAtLeast(bukkitVersion, 1, 18, 2);
+    }
+
+    /** Paper's lifecycle Brigadier command API was introduced in 1.20.6. */
+    public static boolean supportsBrigadier(String bukkitVersion) {
+        return isAtLeast(bukkitVersion, 1, 20, 6);
+    }
+
+    private static boolean isAtLeast(String bukkitVersion, int requiredMajor,
+                                     int requiredMinor, int requiredPatch) {
         Matcher match = VERSION.matcher(bukkitVersion);
         if (!match.matches()) {
             return false;
@@ -19,6 +29,8 @@ public final class VersionSupport {
         int minor = Integer.parseInt(match.group(2));
         int patch = match.group(3) == null ? 0 : Integer.parseInt(match.group(3));
 
-        return major > 1 || (major == 1 && (minor > 18 || (minor == 18 && patch >= 2)));
+        return major > requiredMajor
+                || (major == requiredMajor && (minor > requiredMinor
+                || (minor == requiredMinor && patch >= requiredPatch)));
     }
 }

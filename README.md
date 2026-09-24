@@ -58,7 +58,7 @@ sounds. The events are `home-set`, `home-deleted`, `warmup-tick`, `teleport-succ
 
 Haven's command and teleport feedback lives in `messages.yml` in
 [MiniMessage](https://docs.advntr.dev/minimessage/format.html) format. Setting a message to `""`
-silences it. Run `/haven reload` to apply changes without restarting. Bukkit handles command
+silences it. Run `/haven reload` to apply changes without restarting. Paper handles command
 permission denials before Haven receives the command.
 
 ## PlaceholderAPI
@@ -95,7 +95,9 @@ by setting `enabled: false` in `plugins/bStats/config.yml`.
 
 ## Building
 
-Use JDK 17 or newer; the build emits Java 17 bytecode.
+Use JDK 21 or newer to build. The core emits Java 17 bytecode; the isolated Brigadier adapter
+emits Java 21 bytecode. Both are packaged in one jar. Paper 1.20.6 and newer use Brigadier; older
+supported versions use Bukkit commands.
 
 ```bash
 ./gradlew build

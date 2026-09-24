@@ -1,14 +1,10 @@
 package dev.kwlew.haven.command;
 
+import dev.kwlew.haven.VersionSupport;
 import dev.kwlew.haven.kernel.LifecycleComponent;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.List;
-import java.util.Locale;
-
-/** Registers commands declared in plugin.yml using the API available since Paper 1.18.2. */
+/** Selects the command registrar supported by the running Paper server. */
 public class HavenCommands implements LifecycleComponent {
 
     private final JavaPlugin plugin;
@@ -18,6 +14,7 @@ public class HavenCommands implements LifecycleComponent {
     private final HomesCommand homes;
     private final ReloadCommand reload;
     private final HomeSuggestions suggestions;
+    private BukkitCommands bukkit;
 
     public HavenCommands(JavaPlugin plugin, SetHomeCommand setHome, HomeCommand home,
                          DelHomeCommand delHome, HomesCommand homes, ReloadCommand reload,
@@ -33,26 +30,38 @@ public class HavenCommands implements LifecycleComponent {
 
     @Override
     public void start() {
-        register("sethome", (sender, command, label, args) -> setHome.execute(sender, args));
-        register("home", (sender, command, label, args) -> home.execute(sender, args));
-        register("delhome", (sender, command, label, args) -> delHome.execute(sender, args));
-        register("homes", (sender, command, label, args) -> homes.execute(sender, args));
-        register("haven", (sender, command, label, args) -> reload.execute(sender, args));
+        if (VersionSupport.supportsBrigadier(plugin.getServer().getBukkitVersion())
+                && hasBrigadierApi()) {
+            try {
+                // The Java 21 adapter is loaded only after confirming the running API supports it.
+                Class.forName("dev.kwlew.haven.command.BrigadierCommands", true,
+                                plugin.getClass().getClassLoader())
+                        .asSubclass(CommandRegistrar.class)
+                        .getDeclaredConstructor().newInstance()
+                        .register(plugin, setHome, home, delHome, homes, reload, suggestions);
+            } catch (ReflectiveOperationException e) {
+                throw new IllegalStateException("Could not register Brigadier commands", e);
+            }
+        } else {
+            bukkit = new BukkitCommands(plugin, setHome, home, delHome, homes, reload, suggestions);
+            bukkit.register();
+        }
     }
 
-    private void register(String name, CommandExecutor executor) {
-        PluginCommand command = plugin.getCommand(name);
-        if (command == null) {
-            throw new IllegalStateException("Missing command in plugin.yml: " + name);
+    @Override
+    public void shutdown() {
+        if (bukkit != null) {
+            bukkit.unregister();
         }
-        command.setExecutor(executor);
-        command.setTabCompleter(switch (name) {
-            case "home", "delhome" -> suggestions;
-            case "haven" -> (sender, cmd, alias, args) ->
-                    sender.hasPermission("haven.admin.reload") && args.length == 1
-                            && "reload".startsWith(args[0].toLowerCase(Locale.ROOT))
-                            ? List.of("reload") : List.of();
-            default -> (sender, cmd, alias, args) -> List.of();
-        });
+    }
+
+    private boolean hasBrigadierApi() {
+        try {
+            Class.forName("io.papermc.paper.command.brigadier.Commands", false,
+                    plugin.getClass().getClassLoader());
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
     }
 }

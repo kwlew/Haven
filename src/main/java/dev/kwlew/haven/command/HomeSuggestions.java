@@ -30,8 +30,14 @@ public class HomeSuggestions implements TabCompleter {
         }
 
         String typed = args[0].toLowerCase(Locale.ROOT);
+        return names(player, typed);
+    }
+
+    /** The Brigadier adapter uses the same cached, player-specific suggestions. */
+    public List<String> names(Player player, String typed) {
+        String prefix = typed.toLowerCase(Locale.ROOT);
         return homeManager.cachedNames(player).stream()
-                .filter(name -> name.startsWith(typed))
+                .filter(name -> name.startsWith(prefix))
                 .toList();
     }
 }

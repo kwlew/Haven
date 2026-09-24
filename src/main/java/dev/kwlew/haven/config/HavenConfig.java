@@ -73,11 +73,11 @@ public class HavenConfig {
     }
 
     public boolean cancelOnMove() {
-        return boolAt("teleport.cancel-on-move", true);
+        return boolAt("teleport.cancel-on-move");
     }
 
     public boolean cancelOnDamage() {
-        return boolAt("teleport.cancel-on-damage", true);
+        return boolAt("teleport.cancel-on-damage");
     }
 
     public int shutdownTimeoutSeconds() {
@@ -85,7 +85,7 @@ public class HavenConfig {
     }
 
     public boolean soundsEnabled() {
-        return boolAt("sounds.enabled", true);
+        return boolAt("sounds.enabled");
     }
 
     /** Blank means "this sound is switched off". */
@@ -94,11 +94,11 @@ public class HavenConfig {
     }
 
     public double soundVolume(String id) {
-        return doubleAt("sounds." + id + ".volume", 1.0D);
+        return doubleAt("sounds." + id + ".volume");
     }
 
     public double soundPitch(String id) {
-        return doubleAt("sounds." + id + ".pitch", 1.0D);
+        return doubleAt("sounds." + id + ".pitch");
     }
 
     public String soundSource(String id) {
@@ -123,12 +123,12 @@ public class HavenConfig {
         return defined(path) ? config.getInt(path) : fallback;
     }
 
-    private boolean boolAt(String path, boolean fallback) {
-        return defined(path) ? config.getBoolean(path) : fallback;
+    private boolean boolAt(String path) {
+        return !defined(path) || config.getBoolean(path);
     }
 
-    private double doubleAt(String path, double fallback) {
-        return defined(path) ? config.getDouble(path) : fallback;
+    private double doubleAt(String path) {
+        return defined(path) ? config.getDouble(path) : 1.0;
     }
 
     private String stringAt(String path, String fallback) {

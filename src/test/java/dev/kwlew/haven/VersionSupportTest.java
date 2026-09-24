@@ -20,4 +20,13 @@ class VersionSupportTest {
         assertFalse(VersionSupport.supports("1.17.1-R0.1-SNAPSHOT"));
         assertFalse(VersionSupport.supports("unknown"));
     }
+
+    @Test
+    void selectsBrigadierOnlyFromPaper1206() {
+        assertFalse(VersionSupport.supportsBrigadier("1.18.2-R0.1-SNAPSHOT"));
+        assertFalse(VersionSupport.supportsBrigadier("1.20.4-R0.1-SNAPSHOT"));
+        assertTrue(VersionSupport.supportsBrigadier("1.20.6-R0.1-SNAPSHOT"));
+        assertTrue(VersionSupport.supportsBrigadier("1.21.11-R0.1-SNAPSHOT"));
+        assertTrue(VersionSupport.supportsBrigadier("26.3.build.38-alpha"));
+    }
 }

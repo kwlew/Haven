@@ -10,31 +10,7 @@ load: POSTWORLD
 authors: [ kwlew ]
 website: https://kwlew.dev
 
-softdepend: [ PlaceholderAPI ]
-
-commands:
-  sethome:
-    description: Save a home at your current location.
-    usage: /sethome [name]
-    permission: haven.sethome
-  home:
-    description: Teleport to one of your homes.
-    usage: /home [name]
-    permission: haven.home
-  delhome:
-    description: Delete one of your homes.
-    usage: /delhome <name>
-    aliases: [ removehome ]
-    permission: haven.delhome
-  homes:
-    description: List your homes.
-    usage: /homes
-    aliases: [ listhomes ]
-    permission: haven.homes
-  haven:
-    description: Haven administration.
-    usage: /haven reload
-    permission: haven.admin.reload
+soft-depend: [ PlaceholderAPI ]
 
 permissions:
   haven.home:
