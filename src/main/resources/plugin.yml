@@ -4,13 +4,13 @@ prefix: HAVEN
 version: '${version}'
 
 main: dev.kwlew.haven.Haven
-api-version: '1.18'
+api-version: '1.17'
 load: POSTWORLD
 
 authors: [ kwlew ]
 website: https://kwlew.dev
 
-soft-depend: [ PlaceholderAPI ]
+softdepend: [ PlaceholderAPI ]
 
 permissions:
   haven.home:
@@ -38,4 +38,7 @@ permissions:
     default: op
   haven.admin.reload:
     description: Reload Haven's configuration and messages.
+    default: op
+  haven.admin.update:
+    description: Receive notifications about new Haven releases on Modrinth.
     default: op

@@ -3,6 +3,7 @@ package dev.kwlew.haven.command;
 import dev.kwlew.haven.config.HavenConfig;
 import dev.kwlew.haven.message.Messages;
 import dev.kwlew.haven.sound.Sounds;
+import dev.kwlew.haven.update.UpdateChecker;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -19,12 +20,15 @@ public class ReloadCommand {
     private final HavenConfig config;
     private final Messages messages;
     private final Sounds sounds;
+    private final UpdateChecker updates;
 
-    public ReloadCommand(JavaPlugin plugin, HavenConfig config, Messages messages, Sounds sounds) {
+    public ReloadCommand(JavaPlugin plugin, HavenConfig config, Messages messages, Sounds sounds,
+                         UpdateChecker updates) {
         this.plugin = plugin;
         this.config = config;
         this.messages = messages;
         this.sounds = sounds;
+        this.updates = updates;
     }
 
     public boolean execute(CommandSender sender, String[] args) {
@@ -35,6 +39,7 @@ public class ReloadCommand {
             config.reload();
             messages.reload();
             sounds.reload();
+            updates.reload();
             messages.send(sender, "admin.reloaded");
         } catch (RuntimeException e) {
             plugin.getLogger().log(Level.SEVERE, "Reload failed", e);

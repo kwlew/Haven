@@ -14,7 +14,7 @@ public final class Haven extends JavaPlugin {
     public void onEnable() {
         start = System.currentTimeMillis();
         if (!VersionSupport.supports(getServer().getBukkitVersion())) {
-            getLogger().severe("Haven requires Paper 1.18.2 or newer; found "
+            getLogger().severe("Haven requires Paper 1.17.1 or newer; found "
                     + getServer().getBukkitVersion());
             getServer().getPluginManager().disablePlugin(this);
             return;

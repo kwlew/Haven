@@ -3,7 +3,7 @@ package dev.kwlew.haven;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** The manifest can declare 1.18, but cannot express the required 1.18.2 patch. */
+/** The manifest can declare 1.17, but cannot express the required 1.17.1 patch. */
 public final class VersionSupport {
 
     private static final Pattern VERSION = Pattern.compile("^(\\d+)\\.(\\d+)(?:\\.(\\d+))?.*");
@@ -11,7 +11,7 @@ public final class VersionSupport {
     private VersionSupport() {}
 
     public static boolean supports(String bukkitVersion) {
-        return isAtLeast(bukkitVersion, 1, 18, 2);
+        return isAtLeast(bukkitVersion, 1, 17, 1);
     }
 
     /** Paper's lifecycle Brigadier command API was introduced in 1.20.6. */

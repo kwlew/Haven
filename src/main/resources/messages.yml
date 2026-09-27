@@ -39,5 +39,7 @@ teleport:
   failed: "<prefix><red>Teleport failed. Try again in a moment."
 
 admin:
+  # <link> is a clickable link to the compatible release on Modrinth.
+  update-available: "<prefix><yellow>Haven <latest> is available <gray>(installed: <current>).</gray> <aqua><link>"
   reloaded: "<prefix><green>Configuration reloaded."
   reload-failed: "<prefix><red>Reload failed. Check the console for details."

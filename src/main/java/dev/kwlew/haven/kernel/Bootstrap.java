@@ -13,6 +13,7 @@ import dev.kwlew.haven.listener.WarmupListener;
 import dev.kwlew.haven.message.Messages;
 import dev.kwlew.haven.sound.Sounds;
 import dev.kwlew.haven.teleport.TeleportService;
+import dev.kwlew.haven.update.UpdateChecker;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
@@ -62,6 +63,7 @@ public class Bootstrap {
         registry.resolve(Sounds.class);
         registry.resolve(HomeLimits.class);
         registry.resolve(HomeManager.class);
+        registry.resolve(UpdateChecker.class);
     }
 
     private void initGameplay() {

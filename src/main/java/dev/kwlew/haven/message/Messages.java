@@ -1,10 +1,10 @@
 package dev.kwlew.haven.message;
 
-import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -123,11 +123,11 @@ public class Messages {
         }
     }
 
-    public void send(Audience audience, String key, TagResolver... resolvers) {
+    public void send(CommandSender audience, String key, TagResolver... resolvers) {
         Component message = render(key, resolvers);
 
         if (message != null) {
-            audience.sendMessage(message);
+            audience.spigot().sendMessage(ChatComponents.toBukkit(message));
         }
     }
 

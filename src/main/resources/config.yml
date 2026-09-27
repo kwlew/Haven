@@ -32,6 +32,18 @@ teleport:
   # Damage fully absorbed (shield, invulnerability) does not count.
   cancel-on-damage: true
 
+update-checker:
+  # Check Modrinth for newer stable releases compatible with this Minecraft version.
+  # Checks run in the background at startup and after /haven reload; no plugin jars are downloaded.
+  enabled: true
+
+  # Time between checks, in hours (1-168). Failures retry at this interval too.
+  interval-hours: 6
+
+  # Notify players with haven.admin.update (ops by default) on join and when an update is found.
+  # The console always reports a newly discovered update while checking is enabled.
+  notify-admins: true
+
 storage:
   # How long shutdown waits for pending disk writes to finish, in seconds.
   # Raise this only if you see "timed out flushing" warnings on stop.

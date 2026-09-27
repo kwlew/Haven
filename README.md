@@ -5,8 +5,8 @@ A homes plugin for Paper.
 Players save named locations and teleport back to them, with per-rank home limits, a cooldown,
 and a teleport warmup that cancels if they move or take damage.
 
-- **Server:** Paper 1.18.2 through 26.3
-- **Java:** 17 for Paper 1.18 through 1.19, 21 for 1.20 through 1.21.11, 25 for 26.1 through 26.3
+- **Server:** Paper 1.17.1 through 26.3 (use the latest Paper build for each Minecraft version)
+- **Java:** 17 for Paper 1.17.1 through 1.19, 21 for 1.20 through 1.21.11, 25 for 26.1 through 26.3
 - **Optional:** PlaceholderAPI
 
 ## Install
@@ -41,6 +41,7 @@ Names are case insensitive.
 | `haven.bypass.warmup` | op | Teleport instantly |
 | `haven.bypass.cooldown` | op | Teleport without waiting |
 | `haven.admin.reload` | op | Use `/haven reload` |
+| `haven.admin.update` | op | Receive update notifications |
 
 For example, give members `haven.homes.5` and donors `haven.homes.15`. Players without a limit
 permission use `homes.default-limit` from the config. If you lower a player's limit, their existing
@@ -48,7 +49,7 @@ homes remain available. They cannot create another home until they are below the
 
 ## Configuration
 
-`config.yml` covers home limits, the warmup and cooldown, storage, and sounds. Every option is
+`config.yml` covers home limits, the warmup and cooldown, storage, update checks, and sounds. Every option is
 commented in the generated file.
 
 Each sound event has a namespaced `key`, `volume`, `pitch`, and `source`. Custom resource pack sounds
@@ -60,6 +61,24 @@ Haven's command and teleport feedback lives in `messages.yml` in
 [MiniMessage](https://docs.advntr.dev/minimessage/format.html) format. Setting a message to `""`
 silences it. Run `/haven reload` to apply changes without restarting. Paper handles command
 permission denials before Haven receives the command.
+
+## Update notifications
+
+Haven checks [Modrinth](https://modrinth.com/plugin/khaven) in the background at startup,
+after `/haven reload`, and every six hours. It looks for a newer listed stable Paper release
+that supports the server's exact Minecraft version. Beta/alpha releases are ignored; numeric
+versions are compared so a development build ahead of the latest release is not told to downgrade.
+Unrecognized local version formats skip checking with a console warning.
+
+New updates are logged to the console and sent to online players with `haven.admin.update`
+(ops by default). Joining admins receive the cached result without another network request.
+The message includes a clickable release link and can be customized with `admin.update-available`
+in `messages.yml`, using `<current>`, `<latest>`, and `<link>`.
+
+Set `update-checker.enabled: false` to disable requests, change `interval-hours` (1–168) to adjust
+frequency, or set `notify-admins: false` for console-only notices. Apply changes with `/haven reload`.
+Failed requests retry at the normal interval and log once per outage. Checks never download or
+install plugin jars and do not send player data.
 
 ## PlaceholderAPI
 
@@ -103,13 +122,15 @@ supported versions use Bukkit commands.
 ./gradlew build
 ```
 
-The release jar lands in `build/libs/Haven-<version>.jar`; it includes bStats. `./gradlew test`
+The release jar lands in `build/libs/Haven-<version>.jar`; it includes bStats and an isolated
+MiniMessage/Adventure 4.10 bundle, so formatting also works on Paper 1.17.1. Messages cross into
+Bukkit as JSON chat components; sounds use Bukkit's namespaced sound API. `./gradlew test`
 runs the unit tests. `./gradlew runServer` starts Paper 26.3 with PlaceholderAPI. Select another
-server with `./gradlew runServer -PpaperVersion=1.18.2 -PpaperJavaVersion=17`. Install that Java
+server with `./gradlew runServer -PpaperVersion=1.17.1 -PpaperJavaVersion=17`. Install that Java
 version locally first. Each Paper version has its own `run/<version>/` directory so worlds are
 never opened by an older server.
 
-Use `python3 scripts/smoke-paper.py 1.18.2 17` to check startup, command registration, reload,
+Use `python3 scripts/smoke-paper.py 1.17.1 17` to check startup, command registration, reload,
 and PlaceholderAPI. The compatibility workflow runs this check across the supported version range.
 Before publishing, test `/sethome`, `/home`, `/delhome`, warmup cancellation, cooldown, and reconnect
 persistence with a real player on both endpoint versions.

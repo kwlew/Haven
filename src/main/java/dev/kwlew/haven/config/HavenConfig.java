@@ -84,6 +84,18 @@ public class HavenConfig {
         return Math.max(1, intAt("storage.shutdown-timeout-seconds", 10));
     }
 
+    public boolean updateCheckerEnabled() {
+        return boolAt("update-checker.enabled");
+    }
+
+    public int updateCheckIntervalHours() {
+        return Math.max(1, Math.min(168, intAt("update-checker.interval-hours", 6)));
+    }
+
+    public boolean updateNotifyAdmins() {
+        return boolAt("update-checker.notify-admins");
+    }
+
     public boolean soundsEnabled() {
         return boolAt("sounds.enabled");
     }

@@ -57,6 +57,9 @@ def main() -> int:
         missing.append("home help usage")
     if log.count("That command can only be used by a player.") < 6:
         missing.append("command and alias dispatch")
+    if re.search(r"NoClassDefFoundError|NoSuchMethodError|NoSuchFieldError|"
+                 r"ClassCastException|UnsupportedClassVersionError", log):
+        missing.append("runtime API compatibility")
     if result != 0 or missing:
         print(f"Smoke test failed for Paper {version}: exit={result}, missing={missing}", file=sys.stderr)
         return 1

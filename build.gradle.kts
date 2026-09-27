@@ -16,14 +16,18 @@ val brigadierSourceSet = sourceSets.create("brigadier") {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.18.2-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.17.1-R0.1-SNAPSHOT")
     add("brigadierCompileOnly", "io.papermc.paper:paper-api:1.20.6-R0.1-SNAPSHOT")
     implementation("org.bstats:bstats-bukkit:3.2.1")
+    // Paper 1.17.1 does not supply MiniMessage. Keep its Adventure dependencies private,
+    // and cross the server boundary using Bukkit's JSON chat and sound APIs.
+    implementation("net.kyori:adventure-text-minimessage:4.10.0")
+    implementation("net.kyori:adventure-text-serializer-gson:4.10.0")
     compileOnly("me.clip:placeholderapi:2.12.3")
 
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
-    testImplementation("io.papermc.paper:paper-api:1.18.2-R0.1-SNAPSHOT")
+    testImplementation("io.papermc.paper:paper-api:1.17.1-R0.1-SNAPSHOT")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -73,10 +77,11 @@ tasks {
         configurations = project.configurations.runtimeClasspath.map { setOf(it) }
 
         dependencies {
-            exclude { it.moduleGroup != "org.bstats" }
+            exclude { it.moduleGroup != "org.bstats" && it.moduleGroup != "net.kyori" }
         }
 
         relocate("org.bstats", "dev.kwlew.haven.lib.bstats")
+        relocate("net.kyori", "dev.kwlew.haven.lib.kyori")
     }
 
     processResources {

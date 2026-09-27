@@ -2,7 +2,7 @@ package dev.kwlew.haven.sound;
 
 import dev.kwlew.haven.config.HavenConfig;
 import net.kyori.adventure.key.Key;
-import net.kyori.adventure.sound.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -26,7 +26,7 @@ public class Sounds {
     private final JavaPlugin plugin;
     private final HavenConfig config;
 
-    private final Map<HavenSound, Sound> parsed = new EnumMap<>(HavenSound.class);
+    private final Map<HavenSound, ConfiguredSound> parsed = new EnumMap<>(HavenSound.class);
     private boolean enabled = true;
 
     public Sounds(JavaPlugin plugin, HavenConfig config) {
@@ -40,7 +40,7 @@ public class Sounds {
         enabled = config.soundsEnabled();
 
         for (HavenSound sound : HavenSound.values()) {
-            Sound resolved = parse(sound);
+            ConfiguredSound resolved = parse(sound);
 
             if (resolved != null) {
                 parsed.put(sound, resolved);
@@ -48,7 +48,7 @@ public class Sounds {
         }
     }
 
-    private Sound parse(HavenSound sound) {
+    private ConfiguredSound parse(HavenSound sound) {
         String id = sound.path();
         String key = config.soundKey(id);
 
@@ -57,8 +57,8 @@ public class Sounds {
         }
 
         try {
-            return Sound.sound(
-                    Key.key(key),
+            return new ConfiguredSound(
+                    Key.key(key).asString(),
                     source(config.soundSource(id)),
                     (float) config.soundVolume(id),
                     (float) config.soundPitch(id)
@@ -70,11 +70,17 @@ public class Sounds {
         }
     }
 
-    private Sound.Source source(String raw) {
+    private SoundCategory source(String raw) {
         try {
-            return Sound.Source.valueOf(raw.toUpperCase(Locale.ROOT));
+            // Adventure's source names are singular; Bukkit's corresponding categories are plural.
+            return switch (raw.toLowerCase(Locale.ROOT)) {
+                case "record" -> SoundCategory.RECORDS;
+                case "block" -> SoundCategory.BLOCKS;
+                case "player" -> SoundCategory.PLAYERS;
+                default -> SoundCategory.valueOf(raw.toUpperCase(Locale.ROOT));
+            };
         } catch (IllegalArgumentException e) {
-            return Sound.Source.MASTER;
+            return SoundCategory.MASTER;
         }
     }
 
@@ -86,10 +92,13 @@ public class Sounds {
             return;
         }
 
-        Sound resolved = parsed.get(sound);
+        ConfiguredSound resolved = parsed.get(sound);
 
         if (resolved != null) {
-            player.playSound(resolved, Sound.Emitter.self());
+            player.playSound(player.getLocation(), resolved.key(), resolved.category(),
+                    resolved.volume(), resolved.pitch());
         }
     }
+
+    private record ConfiguredSound(String key, SoundCategory category, float volume, float pitch) {}
 }
