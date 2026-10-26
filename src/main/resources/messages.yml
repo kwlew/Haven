@@ -1,30 +1,88 @@
-# Haven messages - MiniMessage format: https://docs.advntr.dev/minimessage/format.html
+# Haven messages, MiniMessage format: https://docs.advntr.dev/minimessage/format.html
 #
-# <prefix> expands to the prefix defined below.
-# Set any message to an empty string ("") to silence it entirely.
+# <prefix> expands to the prefix below. Set any message to "" to silence it.
+
+# Don't change this, Haven uses it to update this file.
+config-version: 2
 
 prefix: "<gradient:#7aa2f7:#bb9af7><bold>Haven</bold></gradient> <dark_gray>» </dark_gray>"
 
 general:
   players-only: "<prefix><red>That command can only be used by a player."
+  no-permission: "<prefix><red>You do not have permission to do that."
 
 home:
   set: "<prefix><gray>Home <white><name></white> set. <dark_gray>(<count>/<max>)"
   overwritten: "<prefix><gray>Home <white><name></white> moved here."
   overwrite-confirm: "<prefix><yellow>Home <white><name></white> already exists. <gray>Run <white>/sethome <name></white> again within <white><seconds></white>s to move it here."
   deleted: "<prefix><gray>Deleted home <white><name></white> <dark_gray>(<world> <x>, <y>, <z>)"
+  renamed: "<prefix><gray>Renamed home <white><old></white> to <white><name></white>."
+  rename-exists: "<prefix><red>You already have a home named <white><name></white>."
+  rename-same: "<prefix><red>The new name is the same as the old one."
   not-found: "<prefix><red>You have no home named <white><name></white>."
   invalid-name: "<prefix><red>Home names must be 1-16 characters: English letters, digits, <white>-</white>, or <white>_</white>."
   limit-reached: "<prefix><red>Home limit reached. <gray>(<count>/<max>)"
-  # The list groups homes by world. <homes> is the joined, clickable set of names for that world.
-  list-header: "<prefix><gray>Your homes <dark_gray>(<white><count><dark_gray>/<white><max><dark_gray>)"
-  list-world: "<dark_gray>  <white><world> <dark_gray>» <homes>"
-  list-entry: "<hover:show_text:'<gray>Click to teleport to <white><name><newline><dark_gray><x>, <y>, <z><newline><dark_gray>Created <created>'><aqua><name></aqua></hover>"
-  list-separator: "<dark_gray>, "
-  list-empty: "<prefix><gray>You have no homes yet. Use <white>/sethome</white> to create one."
+  world-disabled: "<prefix><red>You can't set homes in <white><world></white>."
+  world-limit-reached: "<prefix><red>You can only have <white><max></white> home(s) in <white><world></white>. <gray>(<count>/<max>)"
+  # Homes are grouped by world. <homes> is that world's clickable names, <world> its display name (see world-names).
+  list-header: "<dark_gray><st>            </st></dark_gray> <gradient:#7aa2f7:#bb9af7><bold>Your Homes</bold></gradient> <gray>(<white><count></white>/<white><max></white>)</gray> <dark_gray><st>            </st>"
+  list-world: "<green>  ▪ <world></green> <dark_gray>»</dark_gray> <homes>"
+  list-world-nether: "<red>  ▪ <world></red> <dark_gray>»</dark_gray> <homes>"
+  list-world-end: "<light_purple>  ▪ <world></light_purple> <dark_gray>»</dark_gray> <homes>"
+  # For homes whose world isn't loaded.
+  list-world-missing: "<dark_gray>  ▪ <world> <italic>(unavailable)</italic> »</dark_gray> <homes>"
+  list-entry: "<hover:show_text:'<white><bold><name></bold></white><newline><gray><world><newline><dark_gray>X <white><x></white>  Y <white><y></white>  Z <white><z></white><newline><dark_gray>Set <created><newline><newline><aqua>▶ Click to teleport'><aqua><name></aqua></hover>"
+  list-separator: "<dark_gray> • "
+  # Homes shared with you, listed after your own. <homes> is the clickable owner:home names (entry takes <owner>, <name>). Hidden when empty.
+  list-shared: "<gold>  ▪ Shared <gray>(<white><count></white>)</gray> <dark_gray>»</dark_gray> <homes>"
+  list-shared-entry: "<hover:show_text:'<white><bold><name></bold></white><newline><gray>Shared by <white><owner></white><newline><newline><aqua>▶ Click to teleport'><aqua><owner>:<name></aqua></hover>"
+  list-footer: "<dark_gray>  Click a home to teleport. <gray>/sethome <white>[name]</white></gray> to add one."
+  list-empty: "<prefix><gray>You have no homes yet. Stand somewhere nice and run <white>/sethome</white>."
+
+# Homes menu (gui.enabled in config.yml). Hover/click tags don't work in items, colors and gradients do.
+# home-lore: <name> <world> <x> <y> <z> <created>. info-lore: <count> <max> <page> <pages>.
+# shared-name and shared-lore: <owner> <name>.
+gui:
+  title: "<dark_gray>Your Homes"
+  home-name: "<aqua><bold><name>"
+  home-lore:
+    - "<gray><world>"
+    - "<dark_gray>X <white><x></white>  Y <white><y></white>  Z <white><z>"
+    - "<dark_gray>Set <created>"
+    - ""
+    - "<yellow>▶ Click to teleport"
+  shared-name: "<gold><bold><owner>:<name>"
+  shared-lore:
+    - "<gray>Shared by <white><owner>"
+    - ""
+    - "<yellow>▶ Click to teleport"
+  info-name: "<gradient:#7aa2f7:#bb9af7><bold>Your Homes"
+  info-lore:
+    - "<gray>Homes: <white><count></white>/<white><max>"
+    - "<gray>Page <white><page></white>/<white><pages>"
+  previous-page: "<yellow>« Previous page"
+  next-page: "<yellow>Next page »"
+
+# /sharehome, /unsharehome and /home <owner>:<home>.
+share:
+  shared: "<prefix><gray>Shared <white><name></white> with <white><player></white>."
+  unshared: "<prefix><gray>Stopped sharing <white><name></white> with <white><player></white>."
+  # <command> is a clickable /home owner:home.
+  received: "<prefix><gray><white><owner></white> shared their home <white><name></white> with you. <aqua><command></aqua>"
+  revoked: "<prefix><gray><white><owner></white> stopped sharing <white><name></white> with you."
+  # Same message whether the home is missing or just not shared, so names can't be probed.
+  not-found: "<prefix><red><white><owner></white> hasn't shared a home named <white><name></white> with you."
+  player-not-found: "<prefix><red>No player named <white><player></white> has played here."
+  already: "<prefix><red>Home <white><name></white> is already shared with <white><player></white>."
+  not-shared-with: "<prefix><red>Home <white><name></white> isn't shared with <white><player></white>."
+  self: "<prefix><red>You can't share a home with yourself."
+  max-reached: "<prefix><red>Home <white><name></white> is already shared with the maximum of <white><max></white> player(s)."
+  list: "<prefix><gray>Home <white><name></white> is shared with <white><players></white>."
+  list-empty: "<prefix><gray>Home <white><name></white> isn't shared with anyone."
+  disabled: "<prefix><red>Home sharing is turned off on this server."
 
 teleport:
-  # Used when moving to another block cancels the warmup.
+  # Used when moving cancels the warmup.
   warmup-start: "<prefix><gray>Teleporting to <white><name></white> in <white><seconds></white>s. <dark_gray>Stay still."
   # Used when teleport.cancel-on-move is false.
   warmup-start-can-move: "<prefix><gray>Teleporting to <white><name></white> in <white><seconds></white>s."
@@ -36,10 +94,42 @@ teleport:
   in-vehicle: "<prefix><red>Leave your vehicle before teleporting."
   cooldown: "<prefix><red>You must wait <white><seconds></white>s before teleporting again."
   world-missing: "<prefix><red>The world <white><world></white> for home <white><name></white> is unavailable."
+  world-disabled: "<prefix><red>Teleporting to homes in <white><world></white> is disabled."
   failed: "<prefix><red>Teleport failed. Try again in a moment."
+  # Saved spot was unsafe, player moved to the nearest safe one.
+  adjusted: "<prefix><yellow>Home <white><name></white> wasn't safe, so you were moved to the nearest safe spot."
+  unsafe: "<prefix><red>Home <white><name></white> isn't safe right now (lava, void, or blocked). <gray>Teleport cancelled."
 
 admin:
   # <link> is a clickable link to the compatible release on Modrinth.
   update-available: "<prefix><yellow>Haven <latest> is available <gray>(installed: <current>).</gray> <aqua><link>"
   reloaded: "<prefix><green>Configuration reloaded."
   reload-failed: "<prefix><red>Reload failed. Check the console for details."
+  # Told once per session to admins with haven.admin.reload when a config file couldn't be updated on startup. <file> is the file name.
+  migration-failed: "<prefix><red>Haven couldn't update <white><file></white> automatically. <gray>Delete it and restart to get the new options. The console has details."
+  version: "<prefix><gray>Haven <white><version></white> on <white><server></white>."
+  up-to-date: "<prefix><green>You're running the latest version."
+  # /haven homes|tp|delhome <player>, works on offline players too.
+  player-not-found: "<prefix><red>No player named <white><player></white> has played here."
+  home-not-found: "<prefix><red><white><player></white> has no home named <white><name></white>."
+  load-failed: "<prefix><red>Could not read <white><player></white>'s homes. Check the console for details."
+  # Reuses the home.list-world* and home.list-entry lines. Clicking runs /haven tp.
+  homes-header: "<dark_gray><st>        </st></dark_gray> <gradient:#7aa2f7:#bb9af7><bold><player>'s Homes</bold></gradient> <gray>(<white><count></white>)</gray> <dark_gray><st>        </st>"
+  homes-empty: "<prefix><gray><white><player></white> has no homes."
+  tp-success: "<prefix><gray>Teleported to <white><player></white>'s home <white><name></white>."
+  deleted: "<prefix><gray>Deleted <white><player></white>'s home <white><name></white> <dark_gray>(<world> <x>, <y>, <z>)"
+
+# /haven help. Takes <command> and <description>. Clicking fills in the command. Only shows what the player can use.
+# Set footer to "" to omit it.
+help:
+  header: "<dark_gray><st>          </st></dark_gray> <gradient:#7aa2f7:#bb9af7><bold>Haven Help</bold></gradient> <dark_gray><st>          </st>"
+  entry: "<hover:show_text:'<gray>Click to fill in'><aqua><command></aqua></hover> <dark_gray>- <gray><description>"
+  footer: ""
+
+# Display names for worlds in the /homes list, by world folder name. Unlisted worlds use
+# Overworld / The Nether / The End, or the folder name with spaces and capitals.
+# Example:
+#   world-names:
+#     world: "Overworld"
+#     resource_world: "Resource World"
+world-names: {}

@@ -6,6 +6,7 @@ import dev.kwlew.haven.message.Messages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
@@ -37,6 +38,7 @@ public class UpdateChecker implements LifecycleComponent, Listener {
     private String announcedVersion;
     private long nextCheck;
     private boolean failureReported;
+    private boolean checkedOnce;
 
     public UpdateChecker(JavaPlugin plugin, HavenConfig config, Messages messages) {
         this.plugin = plugin;
@@ -74,6 +76,7 @@ public class UpdateChecker implements LifecycleComponent, Listener {
         if (pending != null && pending.isDone()) {
             try {
                 available = pending.get().orElse(null);
+                checkedOnce = true;
                 failureReported = false;
                 if (available != null && !available.version().equals(announcedVersion)) {
                     announcedVersion = available.version();
@@ -112,7 +115,25 @@ public class UpdateChecker implements LifecycleComponent, Listener {
     private void notifyPlayer(Player player) {
         if (available == null || !config.updateNotifyAdmins()
                 || !player.hasPermission("haven.admin.update")) return;
-        messages.send(player, "admin.update-available",
+        sendUpdateAvailable(player);
+    }
+
+    /**
+     * Tells a sender what the last completed check found, without starting one - this is read
+     * from a command, which must never wait on the network. Says nothing when no check has
+     * finished (disabled, failing, or just reloaded), because "up to date" would be a guess.
+     * Main thread only, like the rest of this state.
+     */
+    public void sendStatus(CommandSender sender) {
+        if (available != null) {
+            sendUpdateAvailable(sender);
+        } else if (checkedOnce) {
+            messages.send(sender, "admin.up-to-date");
+        }
+    }
+
+    private void sendUpdateAvailable(CommandSender recipient) {
+        messages.send(recipient, "admin.update-available",
                 Placeholder.unparsed("current", installed),
                 Placeholder.unparsed("latest", available.version()),
                 Placeholder.component("link", Component.text(available.url())
@@ -129,6 +150,7 @@ public class UpdateChecker implements LifecycleComponent, Listener {
             pending = null;
         }
         available = null;
+        checkedOnce = false;
     }
 
     @Override

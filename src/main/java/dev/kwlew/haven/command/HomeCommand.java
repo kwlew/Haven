@@ -3,7 +3,10 @@ package dev.kwlew.haven.command;
 import dev.kwlew.haven.home.Home;
 import dev.kwlew.haven.home.HomeManager;
 import dev.kwlew.haven.home.PlayerHomes;
+import dev.kwlew.haven.home.WorldNames;
+import dev.kwlew.haven.home.WorldRules;
 import dev.kwlew.haven.message.Messages;
+import dev.kwlew.haven.share.SharedVisits;
 import dev.kwlew.haven.sound.HavenSound;
 import dev.kwlew.haven.sound.Sounds;
 import dev.kwlew.haven.teleport.TeleportService;
@@ -16,17 +19,23 @@ public class HomeCommand extends PlayerCommand {
     private final HomeManager homeManager;
     private final TeleportService teleportService;
     private final HomesCommand homesCommand;
+    private final WorldRules worldRules;
+    private final SharedVisits visits;
     private final Sounds sounds;
 
     public HomeCommand(Messages messages,
                        HomeManager homeManager,
                        TeleportService teleportService,
                        HomesCommand homesCommand,
+                       WorldRules worldRules,
+                       SharedVisits visits,
                        Sounds sounds) {
         super(messages);
         this.homeManager = homeManager;
         this.teleportService = teleportService;
         this.homesCommand = homesCommand;
+        this.worldRules = worldRules;
+        this.visits = visits;
         this.sounds = sounds;
     }
 
@@ -41,6 +50,15 @@ public class HomeCommand extends PlayerCommand {
     private void run(CommandSender sender, String rawName) {
         Player player = requirePlayer(sender);
         if (player == null) {
+            return;
+        }
+
+        // Before the empty-list check: someone with no homes of their own can still be a guest.
+        // Home names can't contain ':', so this can never be one of the player's own homes.
+        int separator = rawName == null ? -1 : rawName.indexOf(':');
+
+        if (separator >= 0) {
+            visits.visit(player, rawName.substring(0, separator), rawName.substring(separator + 1));
             return;
         }
 
@@ -70,6 +88,14 @@ public class HomeCommand extends PlayerCommand {
                 homesCommand.sendList(player);
                 return;
             }
+        }
+
+        if (!worldRules.teleportAllowed(player, target.world())) {
+            messages.send(player, "teleport.world-disabled",
+                    Placeholder.unparsed("name", target.name()),
+                    Placeholder.unparsed("world", WorldNames.displayName(messages, target.world())));
+            sounds.play(player, HavenSound.DENIED);
+            return;
         }
 
         teleportService.teleport(player, target);

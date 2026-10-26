@@ -11,20 +11,28 @@ public class HavenCommands implements LifecycleComponent {
     private final SetHomeCommand setHome;
     private final HomeCommand home;
     private final DelHomeCommand delHome;
+    private final RenameHomeCommand renameHome;
+    private final ShareHomeCommand shareHome;
+    private final UnshareHomeCommand unshareHome;
     private final HomesCommand homes;
-    private final ReloadCommand reload;
+    private final HavenCommand haven;
     private final HomeSuggestions suggestions;
     private BukkitCommands bukkit;
 
     public HavenCommands(JavaPlugin plugin, SetHomeCommand setHome, HomeCommand home,
-                         DelHomeCommand delHome, HomesCommand homes, ReloadCommand reload,
+                         DelHomeCommand delHome, RenameHomeCommand renameHome,
+                         ShareHomeCommand shareHome, UnshareHomeCommand unshareHome,
+                         HomesCommand homes, HavenCommand haven,
                          HomeSuggestions suggestions) {
         this.plugin = plugin;
         this.setHome = setHome;
         this.home = home;
         this.delHome = delHome;
+        this.renameHome = renameHome;
+        this.shareHome = shareHome;
+        this.unshareHome = unshareHome;
         this.homes = homes;
-        this.reload = reload;
+        this.haven = haven;
         this.suggestions = suggestions;
     }
 
@@ -38,12 +46,14 @@ public class HavenCommands implements LifecycleComponent {
                                 plugin.getClass().getClassLoader())
                         .asSubclass(CommandRegistrar.class)
                         .getDeclaredConstructor().newInstance()
-                        .register(plugin, setHome, home, delHome, homes, reload, suggestions);
+                        .register(plugin, setHome, home, delHome, renameHome, shareHome, unshareHome,
+                                homes, haven, suggestions);
             } catch (ReflectiveOperationException e) {
                 throw new IllegalStateException("Could not register Brigadier commands", e);
             }
         } else {
-            bukkit = new BukkitCommands(plugin, setHome, home, delHome, homes, reload, suggestions);
+            bukkit = new BukkitCommands(plugin, setHome, home, delHome, renameHome, shareHome,
+                    unshareHome, homes, haven, suggestions);
             bukkit.register();
         }
     }

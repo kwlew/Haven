@@ -54,11 +54,31 @@ class ChatComponentsTest {
              var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
             var messages = YamlConfiguration.loadConfiguration(reader);
             for (String key : messages.getKeys(true)) {
-                if (!messages.isString(key)) continue;
-                assertDoesNotThrow(() -> ChatComponents.toBukkit(
-                        MiniMessage.miniMessage().deserialize(messages.getString(key))), key);
+                // A list (menu lore) is every line checked in turn.
+                List<String> lines = messages.isList(key) ? messages.getStringList(key)
+                        : messages.isString(key) ? List.of(messages.getString(key)) : List.of();
+                for (String line : lines) {
+                    assertDoesNotThrow(() -> ChatComponents.toBukkit(
+                            MiniMessage.miniMessage().deserialize(line)), key);
+                    assertDoesNotThrow(() -> ChatComponents.toLegacyItemText(
+                            MiniMessage.miniMessage().deserialize(line)), key);
+                }
             }
         }
+    }
+
+    @Test
+    void legacyTextKeepsHexColoursInTheFormEveryServerReads() {
+        String legacy = ChatComponents.toLegacy(MiniMessage.miniMessage().deserialize("<#7aa2f7>Haven"));
+        assertEquals("§x§7§a§a§2§f§7Haven", legacy);
+    }
+
+    @Test
+    void itemTextIsNotItalicUnlessAskedTo() {
+        assertFalse(ChatComponents.toLegacyItemText(
+                MiniMessage.miniMessage().deserialize("<gray>plain")).contains("§o"));
+        assertTrue(ChatComponents.toLegacyItemText(
+                MiniMessage.miniMessage().deserialize("<italic>asked")).contains("§o"));
     }
 
     private static List<String> colors(String json) {

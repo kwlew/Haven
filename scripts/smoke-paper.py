@@ -35,7 +35,7 @@ def main() -> int:
             if "Done (" in line and "For help" in line and not sent_commands:
                 process.stdin.write(
                     "help home\nsethome test\nhome\ndelhome test\nhomes\n"
-                    "removehome test\nlisthomes\nhaven reload\nstop\n"
+                    "removehome test\nlisthomes\nhaven help\nhaven version\nhaven reload\nstop\n"
                 )
                 process.stdin.flush()
                 sent_commands = True
@@ -49,12 +49,14 @@ def main() -> int:
     log = re.sub(r"\x1b\[[0-9;]*m", "", "".join(output))
     required = (
         "Haven enabled!",
-        "Configuration reloaded.", "Successfully registered internal expansion: haven",
+        "Configuration reloaded.", "Haven Help", "Successfully registered internal expansion: haven",
     )
     missing = [marker for marker in required if marker not in log]
     # Bukkit uses plugin.yml-style usage; Brigadier renders its parsed argument tree.
     if not re.search(r"Usage:\s*/?home \[(?:name|<name>)\]", log):
         missing.append("home help usage")
+    if not re.search(r"Haven \S+ on \S", log):
+        missing.append("haven version output")
     if log.count("That command can only be used by a player.") < 6:
         missing.append("command and alias dispatch")
     if re.search(r"NoClassDefFoundError|NoSuchMethodError|NoSuchFieldError|"

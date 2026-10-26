@@ -23,6 +23,7 @@ dependencies {
     // and cross the server boundary using Bukkit's JSON chat and sound APIs.
     implementation("net.kyori:adventure-text-minimessage:4.10.0")
     implementation("net.kyori:adventure-text-serializer-gson:4.10.0")
+    implementation("net.kyori:adventure-text-serializer-legacy:4.10.0")
     compileOnly("me.clip:placeholderapi:2.12.3")
 
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
@@ -86,6 +87,7 @@ tasks {
 
     processResources {
         val props = mapOf("version" to version, "description" to project.description)
+        inputs.properties(props)
         filesMatching("plugin.yml") {
             expand(props)
         }

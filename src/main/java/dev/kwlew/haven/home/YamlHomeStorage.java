@@ -15,9 +15,13 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -39,7 +43,13 @@ import java.util.logging.Logger;
  */
 public class YamlHomeStorage implements HomeStorage {
 
-    private static final int SCHEMA_VERSION = 1;
+    /**
+     * v2 added {@code shared-with} to each home and the player-level {@code received} list. A v1
+     * file is a v2 file with neither, so it loads as is and is written back as v2 on the next save;
+     * older Haven builds then refuse the file, which is why downgrading is unsupported.
+     */
+    private static final int SCHEMA_VERSION = 2;
+    private static final int OLDEST_SCHEMA_VERSION = 1;
 
     private final Logger logger;
     private final IntSupplier shutdownTimeoutSeconds;
@@ -99,6 +109,26 @@ public class YamlHomeStorage implements HomeStorage {
         }
     }
 
+    @Override
+    public CompletableFuture<PlayerHomes.Snapshot> loadAsync(UUID owner, String lastKnownName) {
+        CompletableFuture<PlayerHomes.Snapshot> result = new CompletableFuture<>();
+
+        try {
+            executor.execute(() -> {
+                try {
+                    result.complete(loadFromDisk(owner, lastKnownName));
+                } catch (Throwable e) {
+                    result.completeExceptionally(e);
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            result.completeExceptionally(
+                    new IllegalStateException("Storage is closing; cannot load homes for " + owner, e));
+        }
+
+        return result;
+    }
+
     private PlayerHomes.Snapshot loadFromDisk(UUID owner, String lastKnownName) {
         YamlConfiguration yaml = readOrRecover(owner);
 
@@ -111,9 +141,9 @@ public class YamlHomeStorage implements HomeStorage {
             throw new IllegalStateException("Home file for " + owner + " has no valid schema version");
         }
         double schema = schemaNumber.doubleValue();
-        if (schema != SCHEMA_VERSION) {
+        if (schema < OLDEST_SCHEMA_VERSION || schema > SCHEMA_VERSION || schema != Math.rint(schema)) {
             throw new IllegalStateException("Home file for " + owner + " uses schema v" + schema
-                    + "; this build supports only v" + SCHEMA_VERSION);
+                    + "; this build supports v" + OLDEST_SCHEMA_VERSION + " to v" + SCHEMA_VERSION);
         }
 
         // Prefer the name the caller supplied - it's current; the stored one may be a rename ago.
@@ -123,7 +153,8 @@ public class YamlHomeStorage implements HomeStorage {
                 owner,
                 name,
                 yaml.getLong("last-teleport", 0L),
-                readHomes(owner, yaml)
+                readHomes(owner, yaml),
+                readReceived(owner, yaml)
         );
     }
 
@@ -176,11 +207,71 @@ public class YamlHomeStorage implements HomeStorage {
                     x, y, z,
                     (float) yaw,
                     (float) pitch,
-                    entry.getLong("created")
+                    entry.getLong("created"),
+                    readSharedWith(entry, name, owner)
             ));
         }
 
         return homes;
+    }
+
+    /**
+     * Strict, unlike {@link #readReceived}: this list is the source of truth for who may visit a
+     * home, and the next save would write back whatever was kept. Silently dropping an entry would
+     * revoke a share nobody asked to revoke, so a bad one refuses the file instead.
+     */
+    private Set<UUID> readSharedWith(ConfigurationSection entry, String name, UUID owner) {
+        if (!entry.isSet("shared-with")) {
+            return Set.of();
+        }
+        if (!entry.isList("shared-with")) {
+            throw new IllegalStateException("Home '" + name + "' for " + owner
+                    + " has a shared-with that is not a list");
+        }
+
+        Set<UUID> shared = new LinkedHashSet<>();
+        for (Object raw : entry.getList("shared-with")) {
+            try {
+                shared.add(UUID.fromString(String.valueOf(raw)));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalStateException("Home '" + name + "' for " + owner
+                        + " is shared with an invalid player id '" + raw + "'", e);
+            }
+        }
+
+        return shared;
+    }
+
+    /**
+     * Lenient on purpose. These entries are a denormalised copy of data in other players' files and
+     * every use re-checks them, so a damaged one is worth less than the player being able to log
+     * in. It is skipped with a warning and simply absent from the next save.
+     */
+    private List<PlayerHomes.Received> readReceived(UUID owner, YamlConfiguration yaml) {
+        List<PlayerHomes.Received> received = new ArrayList<>();
+
+        for (Map<?, ?> entry : yaml.getMapList("received")) {
+            try {
+                received.add(new PlayerHomes.Received(
+                        UUID.fromString(String.valueOf(entry.get("owner"))),
+                        entry.get("owner-name") == null ? null : String.valueOf(entry.get("owner-name")),
+                        validHomeName(entry.get("home"))));
+            } catch (IllegalArgumentException e) {
+                logger.warning("Ignoring a malformed received-home entry for " + owner + ": " + entry);
+            }
+        }
+
+        return received;
+    }
+
+    private static String validHomeName(Object raw) {
+        String name = Home.normalize(String.valueOf(raw));
+
+        if (!Home.isValidName(name)) {
+            throw new IllegalArgumentException("Invalid home name " + raw);
+        }
+
+        return name;
     }
 
     private double coordinate(ConfigurationSection entry, String field, String name, UUID owner) {
@@ -288,6 +379,25 @@ public class YamlHomeStorage implements HomeStorage {
             yaml.set(path + "yaw", home.yaw());
             yaml.set(path + "pitch", home.pitch());
             yaml.set(path + "created", home.created());
+
+            // Omitted when empty so a player who shares nothing keeps the file they always had.
+            if (!home.sharedWith().isEmpty()) {
+                yaml.set(path + "shared-with", home.sharedWith().stream().map(UUID::toString).toList());
+            }
+        }
+
+        if (!snapshot.received().isEmpty()) {
+            List<Map<String, String>> received = new ArrayList<>();
+
+            for (PlayerHomes.Received hint : snapshot.received()) {
+                Map<String, String> entry = new LinkedHashMap<>();
+                entry.put("owner", hint.owner().toString());
+                entry.put("owner-name", hint.ownerName());
+                entry.put("home", hint.home());
+                received.add(entry);
+            }
+
+            yaml.set("received", received);
         }
 
         Path target = fileFor(snapshot.owner()).toPath();

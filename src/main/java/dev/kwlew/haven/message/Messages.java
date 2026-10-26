@@ -13,6 +13,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.logging.Level;
 
 /**
@@ -70,17 +73,27 @@ public class Messages {
         int broken = 0;
 
         for (String key : loaded.getKeys(true)) {
-            String raw = loaded.getString(key);
-
-            if (raw == null || raw.isEmpty()) {
+            if (key.equals("config-version")) {
                 continue;
             }
 
-            try {
-                miniMessage.deserialize(raw);
-            } catch (RuntimeException e) {
-                broken++;
-                plugin.getLogger().warning("Message '" + key + "' is not valid MiniMessage: " + e.getMessage());
+            // A list of lines (menu lore) is checked line by line; getString on a list would
+            // stringify the whole thing.
+            List<String> candidates = loaded.isList(key)
+                    ? loaded.getStringList(key)
+                    : Collections.singletonList(loaded.getString(key));
+
+            for (String raw : candidates) {
+                if (raw == null || raw.isEmpty()) {
+                    continue;
+                }
+
+                try {
+                    miniMessage.deserialize(raw);
+                } catch (RuntimeException e) {
+                    broken++;
+                    plugin.getLogger().warning("Message '" + key + "' is not valid MiniMessage: " + e.getMessage());
+                }
             }
         }
 
@@ -114,6 +127,10 @@ public class Messages {
             return null;
         }
 
+        return renderRaw(key, raw, resolvers);
+    }
+
+    private Component renderRaw(String key, String raw, TagResolver... resolvers) {
         try {
             return miniMessage.deserialize(raw, withPrefix(resolvers));
         } catch (RuntimeException e) {
@@ -121,6 +138,57 @@ public class Messages {
             plugin.getLogger().log(Level.WARNING, "Could not render message '" + key + "'", e);
             return Component.text(raw);
         }
+    }
+
+    /**
+     * Renders a message as a legacy string for an inventory title. Empty when the message has
+     * been blanked out.
+     */
+    public String legacy(String key, TagResolver... resolvers) {
+        Component rendered = render(key, resolvers);
+
+        return rendered == null ? "" : ChatComponents.toLegacy(rendered);
+    }
+
+    /**
+     * Renders a message as a legacy string for an item name, with italics suppressed.
+     */
+    public String legacyItem(String key, TagResolver... resolvers) {
+        Component rendered = render(key, resolvers);
+
+        return rendered == null ? "" : ChatComponents.toLegacyItemText(rendered);
+    }
+
+    /**
+     * Renders a list-valued message (item lore) to legacy strings, one per line, with italics
+     * suppressed. Blank lines are kept, since they are how an admin spaces out a lore block.
+     */
+    public List<String> legacyItemLines(String key, TagResolver... resolvers) {
+        List<String> lines = new ArrayList<>();
+
+        for (String raw : rawList(key)) {
+            lines.add(raw.isEmpty()
+                    ? ""
+                    : ChatComponents.toLegacyItemText(renderRaw(key, raw, resolvers)));
+        }
+
+        return lines;
+    }
+
+    /**
+     * The unparsed lines at {@code path}; empty when absent. Resolves against the bundled defaults
+     * like every other read here.
+     */
+    public List<String> rawList(String path) {
+        return messages.getStringList(path);
+    }
+
+    /**
+     * The unparsed string at {@code path}, or {@code null} when absent or not a string. For
+     * lookups such as {@code world-names} that are data rather than messages to render.
+     */
+    public String raw(String path) {
+        return messages.getString(path);
     }
 
     public void send(CommandSender audience, String key, TagResolver... resolvers) {

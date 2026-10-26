@@ -1,6 +1,7 @@
 package dev.kwlew.haven.config;
 
 import org.bukkit.configuration.Configuration;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -9,6 +10,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 
 /**
@@ -80,8 +85,73 @@ public class HavenConfig {
         return boolAt("teleport.cancel-on-damage");
     }
 
+    public boolean safeTeleportEnabled() {
+        return boolAt("teleport.safe-teleport.enabled");
+    }
+
+    public int safeTeleportRadius() {
+        return Math.max(0, Math.min(8, intAt("teleport.safe-teleport.search-radius", 3)));
+    }
+
+    public int safeTeleportHeight() {
+        return Math.max(0, Math.min(16, intAt("teleport.safe-teleport.search-height", 4)));
+    }
+
+    /** Exact world folder names where /sethome is refused. */
+    public Set<String> disabledWorlds() {
+        return defined("worlds.disabled") ? new HashSet<>(config.getStringList("worlds.disabled")) : Set.of();
+    }
+
+    /** Off unless explicitly enabled, so disabling a world alone never strands existing homes. */
+    public boolean blockTeleportToDisabledWorlds() {
+        return defined("worlds.block-teleport") && config.getBoolean("worlds.block-teleport");
+    }
+
+    /**
+     * Per-world home caps, clamped to 0 or more. Entries that are not whole numbers are skipped
+     * rather than treated as 0, since a typo must not silently forbid homes in that world.
+     */
+    public Map<String, Integer> worldLimits() {
+        Map<String, Integer> limits = new HashMap<>();
+        ConfigurationSection section = config.getConfigurationSection("worlds.limits");
+
+        if (section == null) {
+            return limits;
+        }
+
+        for (Map.Entry<String, Object> entry : section.getValues(false).entrySet()) {
+            Object value = entry.getValue();
+
+            if (value instanceof Number number) {
+                limits.put(entry.getKey(), Math.max(0, number.intValue()));
+            } else if (value instanceof String text) {
+                try {
+                    limits.put(entry.getKey(), Math.max(0, Integer.parseInt(text.trim())));
+                } catch (NumberFormatException ignored) {
+                    // Skipped, as above.
+                }
+            }
+        }
+
+        return limits;
+    }
+
+    /** On unless switched off, so the feature works on installs whose config predates it. */
+    public boolean sharingEnabled() {
+        return boolAt("sharing.enabled");
+    }
+
+    public int sharingMaxPerHome() {
+        return Math.max(1, Math.min(100, intAt("sharing.max-per-home", 10)));
+    }
+
     public int shutdownTimeoutSeconds() {
         return Math.max(1, intAt("storage.shutdown-timeout-seconds", 10));
+    }
+
+    /** Off unless explicitly enabled, unlike most flags - the menu replaces long-standing behaviour. */
+    public boolean guiEnabled() {
+        return defined("gui.enabled") && config.getBoolean("gui.enabled");
     }
 
     public boolean updateCheckerEnabled() {

@@ -26,7 +26,31 @@ permissions:
     description: List your homes.
     default: true
 
-  # haven.homes.<n> sets the home limit.
+  haven.share:
+    description: Share your homes with other players with /sharehome and /unsharehome.
+    default: true
+
+  haven.gui:
+    description: Open the homes menu from /homes and /haven (when gui.enabled is on).
+    default: true
+
+  haven.renamehome:
+    description: Rename one of your homes.
+    default: true
+
+  # haven.homes.<n> sets the home limit. Any number works, these are just for permission-plugin autocomplete.
+  haven.homes.1:
+    description: Allow up to 1 home.
+    default: false
+  haven.homes.3:
+    description: Allow up to 3 homes.
+    default: false
+  haven.homes.5:
+    description: Allow up to 5 homes.
+    default: false
+  haven.homes.10:
+    description: Allow up to 10 homes.
+    default: false
   haven.homes.unlimited:
     description: Bypass the home limit entirely.
     default: op
@@ -36,9 +60,34 @@ permissions:
   haven.bypass.cooldown:
     description: Teleport without waiting for the cooldown.
     default: op
+  haven.bypass.worlds:
+    description: Ignore the disabled-worlds list and per-world home limits.
+    default: op
   haven.admin.reload:
     description: Reload Haven's configuration and messages.
     default: op
   haven.admin.update:
     description: Receive notifications about new Haven releases on Modrinth.
     default: op
+  haven.admin.homes:
+    description: List another player's homes with /haven homes.
+    default: op
+  haven.admin.tp:
+    description: Teleport to another player's home with /haven tp.
+    default: op
+  haven.admin.delhome:
+    description: Delete another player's home with /haven delhome.
+    default: op
+  haven.admin.version:
+    description: Show the Haven and server versions with /haven version.
+    default: op
+  haven.admin:
+    description: Every Haven administration permission.
+    default: op
+    children:
+      haven.admin.reload: true
+      haven.admin.update: true
+      haven.admin.homes: true
+      haven.admin.tp: true
+      haven.admin.delhome: true
+      haven.admin.version: true

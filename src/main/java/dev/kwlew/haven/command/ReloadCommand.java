@@ -1,6 +1,7 @@
 package dev.kwlew.haven.command;
 
 import dev.kwlew.haven.config.HavenConfig;
+import dev.kwlew.haven.gui.HomesMenus;
 import dev.kwlew.haven.message.Messages;
 import dev.kwlew.haven.sound.Sounds;
 import dev.kwlew.haven.update.UpdateChecker;
@@ -16,19 +17,23 @@ import java.util.logging.Level;
  */
 public class ReloadCommand {
 
+    public static final String PERMISSION = "haven.admin.reload";
+
     private final JavaPlugin plugin;
     private final HavenConfig config;
     private final Messages messages;
     private final Sounds sounds;
     private final UpdateChecker updates;
+    private final HomesMenus menus;
 
     public ReloadCommand(JavaPlugin plugin, HavenConfig config, Messages messages, Sounds sounds,
-                         UpdateChecker updates) {
+                         UpdateChecker updates, HomesMenus menus) {
         this.plugin = plugin;
         this.config = config;
         this.messages = messages;
         this.sounds = sounds;
         this.updates = updates;
+        this.menus = menus;
     }
 
     public boolean execute(CommandSender sender, String[] args) {
@@ -40,6 +45,9 @@ public class ReloadCommand {
             messages.reload();
             sounds.reload();
             updates.reload();
+            // Anyone still looking at a menu that was just switched off would be left with a
+            // working teleport launcher the config says should not exist.
+            menus.closeAllIfDisabled();
             messages.send(sender, "admin.reloaded");
         } catch (RuntimeException e) {
             plugin.getLogger().log(Level.SEVERE, "Reload failed", e);

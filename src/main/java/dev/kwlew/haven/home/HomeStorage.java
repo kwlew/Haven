@@ -3,6 +3,7 @@ package dev.kwlew.haven.home;
 import dev.kwlew.haven.kernel.LifecycleComponent;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Persistence for {@link PlayerHomes}.
@@ -18,6 +19,16 @@ public interface HomeStorage extends LifecycleComponent {
      * Safe to call off the main thread - and normally is, from pre-login.
      */
     PlayerHomes.Snapshot load(UUID owner, String lastKnownName);
+
+    /**
+     * Queues a read on the storage thread and returns immediately. Same result and failure modes as
+     * {@link #load}, but the caller is never blocked - for callers (the main thread, serving an
+     * admin command about an offline player) that must not wait on disk. The future completes on
+     * the storage thread, so continuations that touch server state must hop back themselves.
+     * <p>
+     * Shares the FIFO queue with {@link #save}, so the read observes every write queued before it.
+     */
+    CompletableFuture<PlayerHomes.Snapshot> loadAsync(UUID owner, String lastKnownName);
 
     /**
      * Queues a write. Returns immediately; the snapshot is written on the storage thread.

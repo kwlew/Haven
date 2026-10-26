@@ -3,7 +3,10 @@ package dev.kwlew.haven.kernel;
 import dev.kwlew.haven.api.bStats;
 import dev.kwlew.haven.api.papi.PlaceholderAPIHook;
 import dev.kwlew.haven.command.HavenCommands;
+import dev.kwlew.haven.config.FileMigrator;
 import dev.kwlew.haven.config.HavenConfig;
+import dev.kwlew.haven.config.MigrationNotice;
+import dev.kwlew.haven.gui.HomesMenus;
 import dev.kwlew.haven.home.HomeLimits;
 import dev.kwlew.haven.home.HomeManager;
 import dev.kwlew.haven.home.HomeStorage;
@@ -11,6 +14,7 @@ import dev.kwlew.haven.home.YamlHomeStorage;
 import dev.kwlew.haven.listener.ConnectionListener;
 import dev.kwlew.haven.listener.WarmupListener;
 import dev.kwlew.haven.message.Messages;
+import dev.kwlew.haven.share.HomeSharing;
 import dev.kwlew.haven.sound.Sounds;
 import dev.kwlew.haven.teleport.TeleportService;
 import dev.kwlew.haven.update.UpdateChecker;
@@ -54,6 +58,10 @@ public class Bootstrap {
     }
 
     private void initCore() {
+        // Before HavenConfig and Messages: both read their file in the constructor, so an older
+        // file has to be upgraded on disk first or it would only take effect next restart.
+        registry.resolve(FileMigrator.class);
+
         // Must come first: anything depending on the HomeStorage interface would otherwise fail
         // to resolve, since the Registry can't construct an interface on its own.
         registry.resolve(HavenConfig.class);
@@ -63,11 +71,13 @@ public class Bootstrap {
         registry.resolve(Sounds.class);
         registry.resolve(HomeLimits.class);
         registry.resolve(HomeManager.class);
+        registry.resolve(HomeSharing.class);
         registry.resolve(UpdateChecker.class);
     }
 
     private void initGameplay() {
         registry.resolve(TeleportService.class);
+        registry.resolve(HomesMenus.class);
     }
 
     private void initCommands() {
@@ -77,6 +87,7 @@ public class Bootstrap {
     private void initListeners() {
         registry.resolve(ConnectionListener.class);
         registry.resolve(WarmupListener.class);
+        registry.resolve(MigrationNotice.class);
     }
 
     /**

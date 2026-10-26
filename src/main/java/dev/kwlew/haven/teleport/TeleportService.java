@@ -10,6 +10,7 @@ import dev.kwlew.haven.sound.HavenSound;
 import dev.kwlew.haven.sound.Sounds;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -22,7 +23,8 @@ import java.util.UUID;
 import java.util.logging.Level;
 
 /**
- * Runs /home teleports: cooldown gate, cancellable warmup, then an async teleport.
+ * Runs /home teleports: cooldown gate, cancellable warmup, a safety check of the destination, then
+ * an async teleport.
  * <p>
  * The movement check lives in the warmup tick rather than a {@code PlayerMoveEvent} listener.
  * {@code PlayerMoveEvent} is the busiest event on the server and would be handled permanently for
@@ -61,6 +63,24 @@ public class TeleportService implements LifecycleComponent {
      * Validates and begins a teleport. Every rejection path messages the player and returns.
      */
     public void teleport(Player player, Home home) {
+        start(player, home, Arrival.OWN);
+    }
+
+    /**
+     * Sends an admin straight to somebody else's home: no warmup, no cooldown, and the admin's own
+     * {@code lastTeleport} is left alone so inspecting a home doesn't cost them their next
+     * {@code /home}. Everything that protects the trip still applies - the in-flight guard, the
+     * vehicle and missing-world checks, and the safe-destination check - and it lands through the
+     * same completion path as {@link #teleport}, so there is one place that handles a teleport
+     * finishing, failing or being cut short by a quit.
+     *
+     * @param ownerName whose home it is, for the confirmation message
+     */
+    public void teleportDirect(Player admin, Home home, String ownerName) {
+        start(admin, home, new Arrival(ownerName));
+    }
+
+    private void start(Player player, Home home, Arrival arrival) {
         UUID id = player.getUniqueId();
 
         if (warmups.containsKey(id) || inFlight.containsKey(id)) {
@@ -84,6 +104,11 @@ public class TeleportService implements LifecycleComponent {
             return;
         }
 
+        if (!arrival.own()) {
+            complete(player, home, destination, arrival);
+            return;
+        }
+
         long cooldown = cooldownRemainingSeconds(player);
         if (cooldown > 0) {
             messages.send(player, "teleport.cooldown",
@@ -95,7 +120,7 @@ public class TeleportService implements LifecycleComponent {
         int warmupSeconds = player.hasPermission(BYPASS_WARMUP) ? 0 : config.warmupSeconds();
 
         if (warmupSeconds <= 0) {
-            complete(player, home, destination);
+            complete(player, home, destination, arrival);
             return;
         }
 
@@ -138,7 +163,7 @@ public class TeleportService implements LifecycleComponent {
         }
 
         clear(player.getUniqueId());
-        complete(player, warmup.home, warmup.destination);
+        complete(player, warmup.home, warmup.destination, Arrival.OWN);
     }
 
     private boolean hasMoved(Player player, Location origin) {
@@ -150,10 +175,115 @@ public class TeleportService implements LifecycleComponent {
                 || now.getBlockZ() != origin.getBlockZ();
     }
 
-    private void complete(Player player, Home home, Location destination) {
+    private void complete(Player player, Home home, Location destination, Arrival arrival) {
         UUID id = player.getUniqueId();
         Object operation = new Object();
         inFlight.put(id, operation);
+
+        if (!needsSafetyCheck(player)) {
+            teleportNow(player, home, destination, operation, arrival, false);
+            return;
+        }
+
+        // The world can change during a warmup, so the check runs now rather than when the
+        // command was issued. It needs the destination chunk loaded, and getBlockAt on an unloaded
+        // chunk would load it synchronously on the main thread.
+        try {
+            destination.getWorld().getChunkAtAsync(destination)
+                    .whenComplete((chunk, error) -> onMain(() ->
+                            checkAndTeleport(player, home, destination, operation, arrival, error)));
+        } catch (RuntimeException error) {
+            failBeforeTeleport(player, home, operation, "Could not load the destination of home '"
+                    + home.name() + "' for " + player.getName(), error);
+        }
+    }
+
+    /**
+     * Creative and spectator players can fly out of trouble (or are not subject to it), so they
+     * are not second-guessed.
+     */
+    private boolean needsSafetyCheck(Player player) {
+        if (!config.safeTeleportEnabled()) {
+            return false;
+        }
+
+        GameMode mode = player.getGameMode();
+
+        return mode != GameMode.CREATIVE && mode != GameMode.SPECTATOR;
+    }
+
+    private void checkAndTeleport(Player player, Home home, Location destination, Object operation,
+                                  Arrival arrival, Throwable error) {
+        UUID id = player.getUniqueId();
+
+        // A quit can invalidate this operation; a later login may already have started another
+        // teleport under the same UUID, so only ever remove our own entry.
+        if (inFlight.get(id) != operation) {
+            return;
+        }
+        if (!player.isOnline()) {
+            inFlight.remove(id, operation);
+            return;
+        }
+        if (error != null) {
+            failBeforeTeleport(player, home, operation, "Could not load the destination of home '"
+                    + home.name() + "' for " + player.getName(), error);
+            return;
+        }
+
+        Location target;
+        boolean moved;
+        try {
+            SafeLocations.BlockView view = SafeLocations.of(destination.getWorld());
+
+            // The exact spot first, at its precise Y: a home saved on a slab or bed sits at a
+            // fractional Y and must not be mistaken for being inside a block.
+            if (SafeLocations.isSafeStanding(view, destination.getBlockX(), destination.getY(),
+                    destination.getBlockZ())) {
+                target = destination;
+                moved = false;
+            } else {
+                SafeLocations.Spot spot = SafeLocations.findSafe(view,
+                        destination.getBlockX(), destination.getBlockY(), destination.getBlockZ(),
+                        config.safeTeleportRadius(), config.safeTeleportHeight()).orElse(null);
+
+                if (spot == null) {
+                    // Nothing is consumed: the cooldown only starts when a teleport actually lands.
+                    inFlight.remove(id, operation);
+                    messages.send(player, "teleport.unsafe", Placeholder.unparsed("name", home.name()));
+                    sounds.play(player, HavenSound.DENIED);
+                    return;
+                }
+
+                // The saved home is left alone; only this trip is redirected.
+                target = new Location(destination.getWorld(), spot.x() + 0.5, spot.y(), spot.z() + 0.5,
+                        destination.getYaw(), destination.getPitch());
+                moved = true;
+            }
+        } catch (RuntimeException e) {
+            failBeforeTeleport(player, home, operation, "Could not check the destination of home '"
+                    + home.name() + "' for " + player.getName(), e);
+            return;
+        }
+
+        teleportNow(player, home, target, operation, arrival, moved);
+    }
+
+    private void failBeforeTeleport(Player player, Home home, Object operation, String logMessage, Throwable error) {
+        inFlight.remove(player.getUniqueId(), operation);
+        plugin.getLogger().log(Level.WARNING, logMessage, error);
+        messages.send(player, "teleport.failed");
+        sounds.play(player, HavenSound.DENIED);
+    }
+
+    /**
+     * Starts the actual teleport for an operation already registered in {@code inFlight}.
+     *
+     * @param adjusted true when {@code destination} is not the saved spot, so the player is told
+     */
+    private void teleportNow(Player player, Home home, Location destination, Object operation,
+                             Arrival arrival, boolean adjusted) {
+        UUID id = player.getUniqueId();
 
         try {
             player.teleportAsync(destination, PlayerTeleportEvent.TeleportCause.PLUGIN)
@@ -173,9 +303,13 @@ public class TeleportService implements LifecycleComponent {
                             return;
                         }
 
-                        markTeleported(player);
-                        messages.send(player, "teleport.success",
-                                Placeholder.unparsed("name", home.name()));
+                        // Only a player's own trips start their cooldown.
+                        if (arrival.own()) {
+                            markTeleported(player);
+                        }
+                        messages.send(player, adjusted ? "teleport.adjusted" : arrival.successKey(),
+                                Placeholder.unparsed("name", home.name()),
+                                Placeholder.unparsed("player", arrival.ownerName() == null ? "" : arrival.ownerName()));
                         sounds.play(player, HavenSound.TELEPORT_SUCCESS);
                     }));
         } catch (RuntimeException error) {
@@ -276,6 +410,25 @@ public class TeleportService implements LifecycleComponent {
         }
 
         Bukkit.getScheduler().runTask(plugin, action);
+    }
+
+    /**
+     * What a trip is for, which decides how it ends: a player's own {@code /home} starts their
+     * cooldown and says "welcome", an admin visit does neither of those.
+     *
+     * @param ownerName the home's owner when it is not the traveller, otherwise {@code null}
+     */
+    private record Arrival(String ownerName) {
+
+        private static final Arrival OWN = new Arrival(null);
+
+        boolean own() {
+            return ownerName == null;
+        }
+
+        String successKey() {
+            return own() ? "teleport.success" : "admin.tp-success";
+        }
     }
 
     private static final class Warmup {
