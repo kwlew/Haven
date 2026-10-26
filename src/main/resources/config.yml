@@ -1,9 +1,9 @@
-# Haven, a concise sethome plugin
+# Haven, a simple sethome plugin
 #
 # Homes store worlds by name. Renaming or deleting a world orphans its homes:
 # they stay on disk, but /home reports the world as missing.
 
-# Don't change this, Haven uses it to update this file.
+# Don't change this, please, I beg you.
 config-version: 2
 
 homes:
@@ -61,7 +61,7 @@ sharing:
 gui:
   # Chest menu for /homes and /haven instead of the chat list (/homes list still works).
   # The menu only teleports. Players need haven.gui to see it.
-  enabled: false
+  enabled: true
 
 update-checker:
   # Check Modrinth for newer stable releases for this Minecraft version. Nothing is downloaded.
