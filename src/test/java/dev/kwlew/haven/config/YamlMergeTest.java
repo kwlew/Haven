@@ -50,7 +50,12 @@ class YamlMergeTest {
         assertTrue(parsed.isSet("gui.enabled"));
         assertTrue(merged.contains("# Max homes per world, on top of the overall limit."));
         assertEquals(2, parsed.getInt("config-version"));
-        assertTrue(merged.contains("# Don't change this, Haven uses it to update this file."));
+        // Whatever comment the bundled file puts above the marker comes along with it.
+        String markerComment = BUNDLED_CONFIG.lines()
+                .takeWhile(line -> !line.startsWith("config-version:"))
+                .reduce((first, second) -> second)
+                .orElseThrow();
+        assertTrue(merged.contains(markerComment + "\nconfig-version: 2"));
     }
 
     @Test
