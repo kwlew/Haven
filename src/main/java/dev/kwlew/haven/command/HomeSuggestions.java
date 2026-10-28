@@ -1,9 +1,9 @@
 package dev.kwlew.haven.command;
 
-import dev.kwlew.haven.home.Home;
-import dev.kwlew.haven.home.HomeManager;
-import dev.kwlew.haven.home.PlayerHomes;
-import dev.kwlew.haven.share.HomeSharing;
+import dev.kwlew.haven.managers.home.Home;
+import dev.kwlew.haven.managers.home.HomeManager;
+import dev.kwlew.haven.managers.home.PlayerHomes;
+import dev.kwlew.haven.managers.share.HomeSharing;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
@@ -16,14 +16,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
 
-/**
- * Suggests home names, and for the sharing commands the players they involve.
- * <p>
- * Reads only the in-memory cache and returns empty for an uncached player - completion must never
- * block on disk. That is also why shared homes are suggested from the player's received-home hints
- * rather than by looking at the owners' data: a hint may be stale, and picking one then simply
- * reports that the home is no longer shared.
- */
+/** Cache-only suggestions (never blocks on disk). Shared homes come from received hints, which may be stale. */
 public class HomeSuggestions implements TabCompleter {
 
     private final HomeManager homeManager;
@@ -46,7 +39,6 @@ public class HomeSuggestions implements TabCompleter {
         return names(player, typed);
     }
 
-    /** The Brigadier adapter uses the same cached, player-specific suggestions. */
     public List<String> names(Player player, String typed) {
         String prefix = typed.toLowerCase(Locale.ROOT);
         return homeManager.cachedNames(player).stream()
@@ -54,10 +46,6 @@ public class HomeSuggestions implements TabCompleter {
                 .toList();
     }
 
-    /**
-     * For {@code /home}: the player's own homes, then {@code owner:home} for each home shared with
-     * them. Matching ignores case, since the owner part is a player name.
-     */
     public List<String> visitable(Player player, String typed) {
         List<String> suggestions = new ArrayList<>(names(player, typed));
         PlayerHomes homes = homeManager.cached(player);
@@ -78,7 +66,6 @@ public class HomeSuggestions implements TabCompleter {
         return suggestions;
     }
 
-    /** For {@code /unsharehome}'s first argument: only homes that currently have someone to remove. */
     public List<String> sharedHomes(Player player, String typed) {
         PlayerHomes homes = homeManager.cached(player);
 
@@ -95,14 +82,12 @@ public class HomeSuggestions implements TabCompleter {
                 .toList();
     }
 
-    /** For {@code /sharehome}'s second argument: online players other than the sender. */
     public List<String> otherPlayers(Player player, String typed) {
         return lookup.onlineNames(typed).stream()
                 .filter(name -> !name.equals(player.getName()))
                 .toList();
     }
 
-    /** For {@code /unsharehome}'s second argument: the players the named home is shared with. */
     public List<String> recipients(Player player, String homeName, String typed) {
         PlayerHomes homes = homeManager.cached(player);
         Home home = homes == null ? null : homes.get(homeName);
@@ -120,12 +105,10 @@ public class HomeSuggestions implements TabCompleter {
                 .toList();
     }
 
-    /** {@code /home}: own homes and shared ones. */
     TabCompleter forHome() {
         return forPlayer((player, args) -> args.length == 1 ? visitable(player, args[0]) : List.of());
     }
 
-    /** {@code /sharehome <home> <player>}. */
     TabCompleter forShare() {
         return forPlayer((player, args) -> switch (args.length) {
             case 1 -> names(player, args[0]);
@@ -134,7 +117,6 @@ public class HomeSuggestions implements TabCompleter {
         });
     }
 
-    /** {@code /unsharehome <home> <player>}. */
     TabCompleter forUnshare() {
         return forPlayer((player, args) -> switch (args.length) {
             case 1 -> sharedHomes(player, args[0]);

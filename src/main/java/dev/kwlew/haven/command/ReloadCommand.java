@@ -1,20 +1,16 @@
 package dev.kwlew.haven.command;
 
-import dev.kwlew.haven.config.HavenConfig;
-import dev.kwlew.haven.gui.HomesMenus;
-import dev.kwlew.haven.message.Messages;
-import dev.kwlew.haven.sound.Sounds;
-import dev.kwlew.haven.update.UpdateChecker;
+import dev.kwlew.haven.managers.config.HavenConfig;
+import dev.kwlew.haven.managers.gui.HomesMenus;
+import dev.kwlew.haven.managers.home.HomeLimits;
+import dev.kwlew.haven.managers.message.Messages;
+import dev.kwlew.haven.managers.sound.Sounds;
+import dev.kwlew.haven.managers.update.UpdateChecker;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.logging.Level;
 
-/**
- * Re-reads {@code config.yml} and {@code messages.yml}.
- * <p>
- * Re-creating services would strand every live reference to them.
- */
 public class ReloadCommand {
 
     public static final String PERMISSION = "haven.admin.reload";
@@ -25,15 +21,17 @@ public class ReloadCommand {
     private final Sounds sounds;
     private final UpdateChecker updates;
     private final HomesMenus menus;
+    private final HomeLimits limits;
 
     public ReloadCommand(JavaPlugin plugin, HavenConfig config, Messages messages, Sounds sounds,
-                         UpdateChecker updates, HomesMenus menus) {
+                         UpdateChecker updates, HomesMenus menus, HomeLimits limits) {
         this.plugin = plugin;
         this.config = config;
         this.messages = messages;
         this.sounds = sounds;
         this.updates = updates;
         this.menus = menus;
+        this.limits = limits;
     }
 
     public boolean execute(CommandSender sender, String[] args) {
@@ -42,11 +40,11 @@ public class ReloadCommand {
         }
         try {
             config.reload();
+            limits.clear();
             messages.reload();
             sounds.reload();
             updates.reload();
-            // Anyone still looking at a menu that was just switched off would be left with a
-            // working teleport launcher the config says should not exist.
+            // A menu just switched off must not stay open.
             menus.closeAllIfDisabled();
             messages.send(sender, "admin.reloaded");
         } catch (RuntimeException e) {

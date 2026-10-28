@@ -10,7 +10,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/** Loaded only on Paper versions with the lifecycle Brigadier command API. */
 public final class BrigadierCommands implements CommandRegistrar {
 
     public BrigadierCommands() {}
@@ -30,8 +29,7 @@ public final class BrigadierCommands implements CommandRegistrar {
                 return builder.buildFuture();
             };
 
-            // /home also takes owner:home, and ':' is not allowed in an unquoted word() or string(),
-            // so the argument has to be greedy; it is split back into arguments in the executor.
+            // ':' is not allowed in an unquoted word(), so the argument is greedy and split in the executor.
             SuggestionProvider<CommandSourceStack> visitableHomes = (context, builder) -> {
                 if (context.getSource().getSender() instanceof Player player) {
                     suggestions.visitable(player, builder.getRemaining()).forEach(builder::suggest);
@@ -187,10 +185,6 @@ public final class BrigadierCommands implements CommandRegistrar {
         });
     }
 
-    /**
-     * A command with no permission (the {@code /haven} root, open because {@code help} is) gets no
-     * {@code requires} at all, rather than one that always passes.
-     */
     private static LiteralArgumentBuilder<CommandSourceStack> root(CommandSpec spec) {
         LiteralArgumentBuilder<CommandSourceStack> literal = Commands.literal(spec.name);
 

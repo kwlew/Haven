@@ -1,6 +1,6 @@
 package dev.kwlew.haven.command;
 
-import dev.kwlew.haven.message.Messages;
+import dev.kwlew.haven.managers.message.Messages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -10,22 +10,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
-/**
- * {@code /haven help}: the commands the sender may actually run.
- * <p>
- * Open to everyone, so it can only ever list what the sender would be allowed to type - showing a
- * command that answers "no permission" is noise, and showing every admin command to every player
- * advertises tools they cannot use.
- */
+/** {@code /haven help}: lists only the commands the sender may actually run. */
 public class HelpCommand {
 
-    /**
-     * One line of help.
-     *
-     * @param usage       shown as the command, e.g. {@code /home [name]}
-     * @param suggestion  what clicking it puts in the chat box: the command up to its arguments
-     * @param permission  node(s) separated by {@code ;}, any of which grants it; {@code null} for everyone
-     */
+    /** {@code permission}: nodes separated by {@code ;}, any of which grants it; null for everyone. */
     record Entry(String usage, String suggestion, String description, String permission) {
 
         static Entry of(CommandSpec spec) {
@@ -46,9 +34,8 @@ public class HelpCommand {
     }
 
     /**
-     * Every Haven command in the order they are listed. The player commands take their wording from
-     * {@link CommandSpec} so help can't drift from what is registered; the {@code /haven}
-     * subcommands are not separate registrations, so they are described here.
+     * Player commands take their wording from {@link CommandSpec} so help can't drift; {@code /haven} subcommands are
+     * described here.
      */
     static final List<Entry> ENTRIES = List.of(
             Entry.of(CommandSpec.HOME),
@@ -70,7 +57,6 @@ public class HelpCommand {
             new Entry("/haven delhome <player> <home>", "/haven delhome ", "Delete a player's home.",
                     AdminCommand.DELHOME_PERMISSION));
 
-    /** The entries a holder of the given permissions may use, in listing order. */
     static List<Entry> visible(List<Entry> entries, Predicate<String> has) {
         List<Entry> shown = new ArrayList<>();
 
@@ -93,8 +79,7 @@ public class HelpCommand {
         messages.send(sender, "help.header");
 
         for (Entry entry : visible(ENTRIES, sender::hasPermission)) {
-            // The click is attached here, not in messages.yml: MiniMessage doesn't expand
-            // placeholders inside a click tag's argument. Hover text stays configurable.
+            // The click is attached here: MiniMessage doesn't expand placeholders inside a click tag's argument.
             messages.send(sender, "help.entry",
                     Placeholder.component("command", Component.text(entry.usage())
                             .clickEvent(ClickEvent.suggestCommand(entry.suggestion()))),

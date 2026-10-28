@@ -1,8 +1,8 @@
 package dev.kwlew.haven.api.papi;
 
-import dev.kwlew.haven.home.Home;
-import dev.kwlew.haven.home.HomeLimits;
-import dev.kwlew.haven.home.HomeManager;
+import dev.kwlew.haven.managers.home.Home;
+import dev.kwlew.haven.managers.home.HomeLimits;
+import dev.kwlew.haven.managers.home.HomeManager;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -13,19 +13,8 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 
 /**
- * Exposes Haven's per-player numbers to PlaceholderAPI.
- * <p>
- * Every placeholder reads the in-memory cache on the calling thread, so all of them require the
- * player to be <em>online</em>; offline lookups would mean disk I/O on whatever thread PAPI
- * happens to call from. Unknown or offline requests return an empty string, which is how PAPI
- * expects an expansion to decline.
- *
- * <ul>
- *   <li>{@code %haven_homes_used%} - homes currently saved</li>
- *   <li>{@code %haven_homes_max%} - their limit ("∞" when unlimited)</li>
- *   <li>{@code %haven_homes_free%} - remaining slots ("∞" when unlimited)</li>
- *   <li>{@code %haven_homes_list%} - comma-separated home names</li>
- * </ul>
+ * PlaceholderAPI expansion: {@code %haven_homes_used%}, {@code _max}, {@code _free}, {@code _list}. Reads only the
+ * in-memory cache, so offline players return an empty string rather than causing disk I/O on PAPI's thread.
  */
 public class PlaceholderAPI extends PlaceholderExpansion {
 
@@ -41,7 +30,7 @@ public class PlaceholderAPI extends PlaceholderExpansion {
 
     @Override
     public @NotNull String getIdentifier() {
-        // Lowercase: this is the %<identifier>_...% prefix, not a display name.
+        // Lowercase: this is the %<identifier>_...% prefix.
         return plugin.getDescription().getName().toLowerCase(Locale.ROOT);
     }
 

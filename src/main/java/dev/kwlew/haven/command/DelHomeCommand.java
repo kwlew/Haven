@@ -1,12 +1,12 @@
 package dev.kwlew.haven.command;
 
-import dev.kwlew.haven.home.Home;
-import dev.kwlew.haven.home.HomeManager;
-import dev.kwlew.haven.home.PlayerHomes;
-import dev.kwlew.haven.message.Messages;
-import dev.kwlew.haven.share.HomeSharing;
-import dev.kwlew.haven.sound.HavenSound;
-import dev.kwlew.haven.sound.Sounds;
+import dev.kwlew.haven.managers.home.Home;
+import dev.kwlew.haven.managers.home.HomeManager;
+import dev.kwlew.haven.managers.home.PlayerHomes;
+import dev.kwlew.haven.managers.message.Messages;
+import dev.kwlew.haven.managers.share.HomeSharing;
+import dev.kwlew.haven.managers.sound.HavenSound;
+import dev.kwlew.haven.managers.sound.Sounds;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -54,14 +54,12 @@ public class DelHomeCommand extends PlayerCommand {
             return;
         }
 
-        // A pending overwrite for a home that no longer exists would be misleading.
         confirmations.clear(player.getUniqueId());
         homeManager.persist(homes);
-        // Recipients' hints would otherwise list a home that is gone. Best effort; see HomeSharing.
+        // Best effort; see HomeSharing.
         sharing.dropHints(player.getUniqueId(), removed);
         sounds.play(player, HavenSound.HOME_DELETED);
 
-        // Echo the coordinates so an accidental deletion can be recreated from chat history.
         messages.send(player, "home.deleted",
                 Placeholder.unparsed("name", removed.name()),
                 Placeholder.unparsed("world", removed.world()),

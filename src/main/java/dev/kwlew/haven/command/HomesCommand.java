@@ -1,14 +1,14 @@
 package dev.kwlew.haven.command;
 
-import dev.kwlew.haven.gui.HomesMenus;
-import dev.kwlew.haven.home.Home;
-import dev.kwlew.haven.home.HomeDisplay;
-import dev.kwlew.haven.home.HomeLimits;
-import dev.kwlew.haven.home.HomeManager;
-import dev.kwlew.haven.home.PlayerHomes;
-import dev.kwlew.haven.home.WorldNames;
-import dev.kwlew.haven.message.Messages;
-import dev.kwlew.haven.share.HomeSharing;
+import dev.kwlew.haven.managers.gui.HomesMenus;
+import dev.kwlew.haven.managers.home.Home;
+import dev.kwlew.haven.managers.home.HomeDisplay;
+import dev.kwlew.haven.managers.home.HomeLimits;
+import dev.kwlew.haven.managers.home.HomeManager;
+import dev.kwlew.haven.managers.home.PlayerHomes;
+import dev.kwlew.haven.managers.home.WorldNames;
+import dev.kwlew.haven.managers.message.Messages;
+import dev.kwlew.haven.managers.share.HomeSharing;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -39,11 +39,7 @@ public class HomesCommand extends PlayerCommand {
         this.sharing = sharing;
     }
 
-    /**
-     * Bare {@code /homes} opens the menu when it is enabled and the player may use it, and falls
-     * back to the chat list otherwise. {@code /homes list} is always the chat list, so the text
-     * view stays reachable (and linkable) with the menu switched on.
-     */
+    /** Bare {@code /homes} opens the menu if available; {@code /homes list} is always the chat list. */
     public boolean execute(CommandSender sender, String[] args) {
         if (args.length > 1 || (args.length == 1 && !args[0].equalsIgnoreCase("list"))) {
             return false;
@@ -61,17 +57,7 @@ public class HomesCommand extends PlayerCommand {
         return true;
     }
 
-    /**
-     * Renders the home list, grouped by world with each name as a clickable chip.
-     * <p>
-     * Grouping keeps the output to one line per world instead of one per home, which matters for
-     * a player near a high limit - a flat list of twenty homes would push the rest of chat away.
-     * <p>
-     * Shared with {@code /home} so an ambiguous no-argument teleport shows the same thing.
-     * <p>
-     * Homes other players shared with this one follow the worlds, on a line of their own. They are
-     * not counted in the header: they don't use up the player's limit.
-     */
+    /** Also used by {@code /home} for an ambiguous no-argument teleport. Shared homes are not counted in the header. */
     public void sendList(Player player) {
         PlayerHomes homes = homeManager.homesOf(player);
         List<PlayerHomes.Received> shared = sharing.visibleHints(homes);
@@ -85,7 +71,7 @@ public class HomesCommand extends PlayerCommand {
         sendList(player, homes, new Frame(
                 header,
                 () -> {
-                    // Someone with only guest access still has something to show.
+                    // Guest-only access still has something to show.
                     if (shared.isEmpty()) {
                         messages.send(player, "home.list-empty");
                         return;
@@ -99,10 +85,6 @@ public class HomesCommand extends PlayerCommand {
                 sharedLine));
     }
 
-    /**
-     * One line of {@code owner:home} chips for the homes shared with the viewer. Built from hints, so
-     * a chip can lead to a home that has since been unshared; running it says so and prunes the hint.
-     */
     private void sendShared(Player viewer, List<PlayerHomes.Received> shared) {
         if (shared.isEmpty()) {
             return;
@@ -116,7 +98,7 @@ public class HomesCommand extends PlayerCommand {
                 Placeholder.component("homes", Component.join(JoinConfiguration.separator(separator), chips)));
     }
 
-    /** As {@link #chip}, the click attached in code. The owner name is a valid player name, so safe to concatenate. */
+    /** Like {@link #chip}; the owner name is a valid player name, so concatenating it is safe. */
     private Component sharedChip(PlayerHomes.Received hint) {
         return renderOrEmpty("home.list-shared-entry",
                 Placeholder.unparsed("owner", hint.ownerName()),
@@ -124,16 +106,7 @@ public class HomesCommand extends PlayerCommand {
                 .clickEvent(ClickEvent.runCommand("/home " + hint.ownerName() + ":" + hint.home()));
     }
 
-    /**
-     * The wording and click target around a list. {@code /haven homes <player>} renders the very
-     * same body as {@code /homes}, so only these few things differ between the two.
-     *
-     * @param header  sent before the first world line
-     * @param empty   sent instead of everything else when there are no homes
-     * @param footer  sent after the last world line
-     * @param command builds the command a chip runs; see {@link #chip} for why it is built in code
-     * @param afterWorlds sent after the last world line and before the footer
-     */
+    /** Wording and click target around a list; shared with {@code /haven homes <player>}. */
     public record Frame(Runnable header, Runnable empty, Runnable footer,
                         Function<Home, String> command, Runnable afterWorlds) {
 
@@ -142,9 +115,6 @@ public class HomesCommand extends PlayerCommand {
         }
     }
 
-    /**
-     * Renders {@code homes} to {@code viewer}, which need not be their owner.
-     */
     public void sendList(CommandSender viewer, PlayerHomes homes, Frame frame) {
         if (homes.count() == 0) {
             frame.empty().run();
@@ -171,11 +141,6 @@ public class HomesCommand extends PlayerCommand {
         frame.footer().run();
     }
 
-    /**
-     * Picks the world-line message by dimension so the Nether and End read differently at a glance.
-     * A {@code null} world is one that is not loaded - an orphaned home - and gets its own line so it
-     * is visibly unusable rather than looking like any other world.
-     */
     private String worldKey(World world) {
         if (world == null) {
             return "home.list-world-missing";
@@ -188,15 +153,7 @@ public class HomesCommand extends PlayerCommand {
         };
     }
 
-    /**
-     * One clickable home name.
-     * <p>
-     * The click action is attached here rather than in {@code messages.yml} because MiniMessage
-     * does not expand placeholders inside a click tag's argument - {@code '/home <name>'} would
-     * survive into the command verbatim. Hover text has no such problem, so it stays configurable.
-     * Home names are validated against {@code [a-z0-9_-]{1,16}}, so building the command by
-     * concatenation is safe.
-     */
+    /** The click is attached in code because MiniMessage does not expand placeholders inside a click tag's argument. */
     private Component chip(Home home, Function<Home, String> command) {
         return renderOrEmpty("home.list-entry",
                 HomeDisplay.placeholders(home, WorldNames.displayName(messages, home.world())))
@@ -204,8 +161,7 @@ public class HomesCommand extends PlayerCommand {
     }
 
     /**
-     * {@link Messages#render} returns null for a message an admin has blanked out; inside a
-     * composed line that has to become empty rather than propagate.
+     * {@link Messages#render} returns null for a blanked-out message; inside a composed line that must become empty.
      */
     private Component renderOrEmpty(String key,
                                     TagResolver... resolvers) {

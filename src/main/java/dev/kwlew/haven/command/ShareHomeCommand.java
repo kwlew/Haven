@@ -1,12 +1,12 @@
 package dev.kwlew.haven.command;
 
-import dev.kwlew.haven.home.Home;
-import dev.kwlew.haven.home.HomeManager;
-import dev.kwlew.haven.home.PlayerHomes;
-import dev.kwlew.haven.message.Messages;
-import dev.kwlew.haven.share.HomeSharing;
-import dev.kwlew.haven.sound.HavenSound;
-import dev.kwlew.haven.sound.Sounds;
+import dev.kwlew.haven.managers.home.Home;
+import dev.kwlew.haven.managers.home.HomeManager;
+import dev.kwlew.haven.managers.home.PlayerHomes;
+import dev.kwlew.haven.managers.message.Messages;
+import dev.kwlew.haven.managers.share.HomeSharing;
+import dev.kwlew.haven.managers.sound.HavenSound;
+import dev.kwlew.haven.managers.sound.Sounds;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -17,12 +17,8 @@ import org.bukkit.entity.Player;
 import java.util.stream.Collectors;
 
 /**
- * {@code /sharehome <home> <player>} lets one more player visit a home with
- * {@code /home <you>:<home>}; {@code /sharehome <home>} lists who already can.
- * <p>
- * The owner's file is changed and saved first, on the main thread like every other edit. The
- * recipient's hint is then added through {@link HomeSharing}, which reaches them whether or not
- * they're online and which can fail without undoing the share (a visit re-checks the owner anyway).
+ * {@code /sharehome <home> <player>}; the recipient's hint is best-effort via {@link HomeSharing} and may fail without
+ * undoing the share.
  */
 public class ShareHomeCommand extends PlayerCommand {
 
@@ -123,12 +119,7 @@ public class ShareHomeCommand extends PlayerCommand {
         }
     }
 
-    /**
-     * The click is attached here rather than in {@code messages.yml}: MiniMessage does not expand
-     * placeholders inside a click tag's argument. The command is safe to build by concatenation
-     * because home names are validated and a player name is limited to letters, digits and
-     * underscores.
-     */
+    /** The click is attached in code: MiniMessage does not expand placeholders inside a click tag's argument. */
     private void notifyRecipient(Player recipient, Player owner, Home home) {
         String command = "/home " + owner.getName() + ":" + home.name();
 

@@ -1,9 +1,9 @@
 package dev.kwlew.haven.api;
 
-import dev.kwlew.haven.config.HavenConfig;
 import dev.kwlew.haven.globals.BuildINFO;
-import dev.kwlew.haven.home.HomeManager;
 import dev.kwlew.haven.kernel.LifecycleComponent;
+import dev.kwlew.haven.managers.config.HavenConfig;
+import dev.kwlew.haven.managers.home.HomeManager;
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.SimplePie;
 import org.bstats.charts.SingleLineChart;
@@ -12,12 +12,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
 /**
- * bStats metrics, plus a few charts describing how Haven is actually configured.
- * <p>
- * bStats invokes chart callbacks on its own submission thread. {@link HomeManager}'s cache and the
- * loaded configuration are both main-thread state, so reading them from that callback would be a
- * data race. Instead a main-thread task refreshes {@code volatile} snapshots and the charts only
- * ever read those - which also keeps the figures current across a {@code /haven reload}.
+ * bStats metrics. Chart callbacks run on bStats' thread, so they read only {@code volatile} snapshots refreshed by a
+ * main-thread task.
  */
 public class bStats implements LifecycleComponent {
 
@@ -73,7 +69,6 @@ public class bStats implements LifecycleComponent {
         }
     }
 
-    /** Main thread only. */
     private void snapshot() {
         warmupEnabled = config.warmupSeconds() > 0;
         cooldownEnabled = config.cooldownSeconds() > 0;

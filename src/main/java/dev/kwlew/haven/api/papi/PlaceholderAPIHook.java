@@ -1,18 +1,15 @@
 package dev.kwlew.haven.api.papi;
 
-import dev.kwlew.haven.home.HomeLimits;
-import dev.kwlew.haven.home.HomeManager;
 import dev.kwlew.haven.kernel.LifecycleComponent;
+import dev.kwlew.haven.managers.home.HomeLimits;
+import dev.kwlew.haven.managers.home.HomeManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.logging.Level;
 
 /**
- * Registers {@link PlaceholderAPI} when PlaceholderAPI is installed.
- * <p>
- * The expansion is held so it can be unregistered on shutdown. It declares
- * {@code persist() == true}, meaning PAPI keeps it across its own reloads - so without an explicit
- * unregister a disabled Haven would leave an expansion behind pointing at dead services.
+ * Registers {@link PlaceholderAPI}; unregistered on shutdown because the persistent expansion would otherwise outlive
+ * Haven.
  */
 public class PlaceholderAPIHook implements LifecycleComponent {
 
@@ -58,7 +55,7 @@ public class PlaceholderAPIHook implements LifecycleComponent {
         try {
             expansion.unregister();
         } catch (RuntimeException e) {
-            // PAPI may already be gone if it was disabled before us; not worth failing shutdown.
+            // PAPI may already be gone.
             plugin.getLogger().log(Level.FINE, "Could not unregister the " + PLACEHOLDER_API + " expansion", e);
         } finally {
             expansion = null;

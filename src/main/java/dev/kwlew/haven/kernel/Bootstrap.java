@@ -3,33 +3,29 @@ package dev.kwlew.haven.kernel;
 import dev.kwlew.haven.api.bStats;
 import dev.kwlew.haven.api.papi.PlaceholderAPIHook;
 import dev.kwlew.haven.command.HavenCommands;
-import dev.kwlew.haven.config.FileMigrator;
-import dev.kwlew.haven.config.HavenConfig;
-import dev.kwlew.haven.config.MigrationNotice;
-import dev.kwlew.haven.gui.HomesMenus;
-import dev.kwlew.haven.home.HomeLimits;
-import dev.kwlew.haven.home.HomeManager;
-import dev.kwlew.haven.home.HomeStorage;
-import dev.kwlew.haven.home.YamlHomeStorage;
 import dev.kwlew.haven.listener.ConnectionListener;
 import dev.kwlew.haven.listener.WarmupListener;
-import dev.kwlew.haven.message.Messages;
-import dev.kwlew.haven.share.HomeSharing;
-import dev.kwlew.haven.sound.Sounds;
-import dev.kwlew.haven.teleport.TeleportService;
-import dev.kwlew.haven.update.UpdateChecker;
+import dev.kwlew.haven.managers.config.FileMigrator;
+import dev.kwlew.haven.managers.config.HavenConfig;
+import dev.kwlew.haven.managers.config.MigrationNotice;
+import dev.kwlew.haven.managers.gui.HomesMenus;
+import dev.kwlew.haven.managers.home.HomeLimits;
+import dev.kwlew.haven.managers.home.HomeManager;
+import dev.kwlew.haven.managers.home.HomeStorage;
+import dev.kwlew.haven.managers.home.YamlHomeStorage;
+import dev.kwlew.haven.managers.message.Messages;
+import dev.kwlew.haven.managers.share.HomeSharing;
+import dev.kwlew.haven.managers.sound.Sounds;
+import dev.kwlew.haven.managers.teleport.TeleportService;
+import dev.kwlew.haven.managers.update.UpdateChecker;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
 import java.util.logging.Level;
 
 /**
- * Wires every component together and drives the plugin's lifecycle.
- * <p>
- * Registration is grouped by feature area purely for readability - {@link Registry#resolve} is
- * depth-first, so a component's dependencies are always constructed before it regardless of which
- * group pulled it in. Group order only decides the relative position of components with no
- * dependency edge between them, which matters in exactly two places, both called out below.
+ * Wires components together via {@link Registry} (depth-first, so dependencies are built first) and drives the
+ * lifecycle.
  */
 public class Bootstrap {
 
@@ -58,12 +54,10 @@ public class Bootstrap {
     }
 
     private void initCore() {
-        // Before HavenConfig and Messages: both read their file in the constructor, so an older
-        // file has to be upgraded on disk first or it would only take effect next restart.
+        // Before HavenConfig and Messages: they read their files in the constructor, so an upgrade must land first.
         registry.resolve(FileMigrator.class);
 
-        // Must come first: anything depending on the HomeStorage interface would otherwise fail
-        // to resolve, since the Registry can't construct an interface on its own.
+        // Before anything that needs the HomeStorage interface, which the Registry can't construct on its own.
         registry.resolve(HavenConfig.class);
         registry.bind(HomeStorage.class, YamlHomeStorage.class);
 
@@ -90,19 +84,12 @@ public class Bootstrap {
         registry.resolve(MigrationNotice.class);
     }
 
-    /**
-     * Optional third-party hooks. Last on purpose: both report on core services, so those must
-     * already exist. Being last also means they shut down first, before the data they read.
-     */
+    /** Last on purpose: they report on core services, and so shut down first. */
     private void initAPI() {
         registry.resolve(bStats.class);
         registry.resolve(PlaceholderAPIHook.class);
     }
 
-    /**
-     * Runs {@code init()} across every component, then {@code start()}. A failure in either phase
-     * tears down whatever was already brought up rather than leaving the plugin half-enabled.
-     */
     private void runLifecycle() {
         List<LifecycleComponent> components = lifecycleComponents(registry.getAll());
 
@@ -122,16 +109,8 @@ public class Bootstrap {
     }
 
     /**
-     * Shuts down every component the {@link Registry} managed to construct, in reverse creation
-     * order, so a component is always torn down before the dependencies it was built from.
-     * <p>
-     * Deliberately keyed off what was <em>constructed</em> rather than what was successfully
-     * initialised. A constructor can already own a resource - {@code YamlHomeStorage} starts its
-     * non-daemon I/O thread there - so if a later component fails to construct, that thread still
-     * has to be stopped or it keeps the JVM alive and the server never finishes stopping. This is
-     * why every {@code shutdown()} must tolerate never having been {@code init()}ed.
-     * <p>
-     * Safe to call twice: the rollback path and {@code onDisable} can both reach it.
+     * Shuts down every constructed component in reverse creation order, even if never {@code init()}ed (a
+     * constructor may already own a resource, e.g. the non-daemon I/O thread). Safe to call twice.
      */
     public void shutdown() {
         if (tornDown) {

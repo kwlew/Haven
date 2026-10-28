@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Programmatic fallback for servers older than Paper 1.20.6. */
 final class BukkitCommands {
 
     private final JavaPlugin plugin;
@@ -58,7 +57,6 @@ final class BukkitCommands {
                 (sender, cmd, label, args) ->
                         args.length == 1 && "list".startsWith(args[0].toLowerCase(Locale.ROOT))
                                 ? List.of("list") : List.of());
-        // No command-level permission: the root is open and each subcommand is enforced per node.
         add(CommandSpec.HAVEN, (sender, cmd, label, args) -> haven.execute(sender, args),
                 (sender, cmd, label, args) -> haven.tabComplete(sender, args));
     }

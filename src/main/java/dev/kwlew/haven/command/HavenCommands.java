@@ -4,7 +4,6 @@ import dev.kwlew.haven.VersionSupport;
 import dev.kwlew.haven.kernel.LifecycleComponent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/** Selects the command registrar supported by the running Paper server. */
 public class HavenCommands implements LifecycleComponent {
 
     private final JavaPlugin plugin;
@@ -41,7 +40,7 @@ public class HavenCommands implements LifecycleComponent {
         if (VersionSupport.supportsBrigadier(plugin.getServer().getBukkitVersion())
                 && hasBrigadierApi()) {
             try {
-                // The Java 21 adapter is loaded only after confirming the running API supports it.
+                // Loaded only once the running API is known to support the Java 21 adapter.
                 Class.forName("dev.kwlew.haven.command.BrigadierCommands", true,
                                 plugin.getClass().getClassLoader())
                         .asSubclass(CommandRegistrar.class)

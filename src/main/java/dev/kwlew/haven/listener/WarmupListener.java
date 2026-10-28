@@ -1,7 +1,7 @@
 package dev.kwlew.haven.listener;
 
 import dev.kwlew.haven.kernel.LifecycleComponent;
-import dev.kwlew.haven.teleport.TeleportService;
+import dev.kwlew.haven.managers.teleport.TeleportService;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -10,12 +10,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/**
- * Cancels a pending teleport when the player takes damage or dies.
- * <p>
- * Movement is <em>not</em> handled here - {@link TeleportService} samples position in its warmup
- * tick instead, which also covers vehicles.
- */
+/** Cancels a pending teleport on damage or death; movement is handled by {@link TeleportService}'s warmup tick. */
 public class WarmupListener implements Listener, LifecycleComponent {
 
     private final JavaPlugin plugin;
@@ -37,7 +32,7 @@ public class WarmupListener implements Listener, LifecycleComponent {
             return;
         }
 
-        // Damage fully absorbed by a shield or invulnerability shouldn't punish the player.
+        // Fully absorbed damage shouldn't cancel.
         if (event.getFinalDamage() <= 0.0D) {
             return;
         }

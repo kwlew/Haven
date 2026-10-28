@@ -4,7 +4,6 @@ import org.bukkit.command.CommandSender;
 
 import java.util.List;
 
-/** Metadata shared by Bukkit and Brigadier command registration. */
 enum CommandSpec {
     SET_HOME("sethome", "Save a home at your current location.", "/sethome [name]",
             "haven.sethome", List.of()),
@@ -20,18 +19,14 @@ enum CommandSpec {
             "haven.share", List.of()),
     HOMES("homes", "Open or list your homes.", "/homes [list]",
             "haven.homes", List.of("listhomes")),
-    // No permission: help is for everyone, so the root can't be gated. Each subcommand (and the menu)
-    // checks its own node, on both command paths.
+    // No permission: help is open to everyone, so the root can't be gated; subcommands check their own nodes.
     HAVEN("haven", "Open your homes menu, get help, or use Haven's admin tools.",
             "/haven [help|version|reload|homes|tp|delhome]", null, List.of());
 
     final String name;
     final String description;
     final String usage;
-    /**
-     * One or more nodes separated by {@code ;}, any of which grants access (Bukkit's own syntax), or
-     * {@code null} when anyone may run the command.
-     */
+    /** Nodes separated by {@code ;}, any of which grants access; null for everyone. */
     final String permission;
     final List<String> aliases;
 
@@ -44,7 +39,6 @@ enum CommandSpec {
         this.aliases = aliases;
     }
 
-    /** True when the sender holds at least one of the permission nodes (or none are required). */
     boolean permits(CommandSender sender) {
         if (permission == null) {
             return true;

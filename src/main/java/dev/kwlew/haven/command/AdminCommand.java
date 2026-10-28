@@ -1,12 +1,12 @@
 package dev.kwlew.haven.command;
 
-import dev.kwlew.haven.home.Home;
-import dev.kwlew.haven.home.HomeManager;
-import dev.kwlew.haven.home.PlayerHomes;
-import dev.kwlew.haven.message.Messages;
-import dev.kwlew.haven.share.HomeSharing;
-import dev.kwlew.haven.teleport.TeleportService;
-import dev.kwlew.haven.update.UpdateChecker;
+import dev.kwlew.haven.managers.home.Home;
+import dev.kwlew.haven.managers.home.HomeManager;
+import dev.kwlew.haven.managers.home.PlayerHomes;
+import dev.kwlew.haven.managers.message.Messages;
+import dev.kwlew.haven.managers.share.HomeSharing;
+import dev.kwlew.haven.managers.teleport.TeleportService;
+import dev.kwlew.haven.managers.update.UpdateChecker;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -15,13 +15,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.logging.Level;
 
 /**
- * The {@code /haven} subcommands that act on other players' homes, plus {@code version}.
- * <p>
- * The target may be offline, so each one resolves the name, then {@link HomeManager#load loads}
- * their homes and does its work in the continuation. The continuation always runs on the main
- * thread, which is what lets it read and edit the container and message the sender without
- * further hopping. {@code /haven} has already checked the sender's permission by the time these
- * are called.
+ * The {@code /haven} subcommands acting on other players' homes (possibly offline); continuations run on the main
+ * thread.
  */
 public class AdminCommand extends PlayerCommand {
 
@@ -54,7 +49,6 @@ public class AdminCommand extends PlayerCommand {
         this.updates = updates;
     }
 
-    /** {@code /haven version} */
     public void version(CommandSender sender) {
         messages.send(sender, "admin.version",
                 Placeholder.unparsed("version", plugin.getDescription().getVersion()),
@@ -62,7 +56,6 @@ public class AdminCommand extends PlayerCommand {
         updates.sendStatus(sender);
     }
 
-    /** {@code /haven homes <player>}; {@code args} is everything after the subcommand. */
     public boolean homes(CommandSender sender, String[] args) {
         if (args.length != 1) {
             return false;
@@ -80,7 +73,6 @@ public class AdminCommand extends PlayerCommand {
         return true;
     }
 
-    /** {@code /haven tp <player> <home>} */
     public boolean tp(CommandSender sender, String[] args) {
         if (args.length != 2) {
             return false;
@@ -108,7 +100,6 @@ public class AdminCommand extends PlayerCommand {
         return true;
     }
 
-    /** {@code /haven delhome <player> <home>} */
     public boolean delHome(CommandSender sender, String[] args) {
         if (args.length != 2) {
             return false;
@@ -121,14 +112,13 @@ public class AdminCommand extends PlayerCommand {
                 return;
             }
 
-            // A pending overwrite for a home that no longer exists would be misleading. A no-op
-            // for a player who isn't online, so there is nothing to check first.
+            // A pending overwrite for a deleted home would be misleading.
             confirmations.clear(target.id());
             homeManager.persistAny(homes);
-            // Recipients' hints would otherwise list a home that is gone. Best effort; see HomeSharing.
+            // Recipients' hints would otherwise list a gone home; best effort.
             sharing.dropHints(target.id(), removed);
 
-            // Echo the coordinates so an accidental deletion can be recreated from chat history.
+            // Echo coordinates so an accidental deletion can be recreated from chat history.
             messages.send(sender, "admin.deleted",
                     Placeholder.unparsed("player", target.name()),
                     Placeholder.unparsed("name", removed.name()),
@@ -146,10 +136,6 @@ public class AdminCommand extends PlayerCommand {
                 Placeholder.unparsed("name", Home.normalize(rawName)));
     }
 
-    /**
-     * Resolves {@code playerName}, loads their homes and hands both to {@code action} on the main
-     * thread. Reports an unknown player or an unreadable file to the sender.
-     */
     private void withHomes(CommandSender sender, String playerName,
                            WithHomes action) {
         PlayerLookup.Target target = lookup.find(playerName);
@@ -169,7 +155,7 @@ public class AdminCommand extends PlayerCommand {
             try {
                 action.accept(target, homes);
             } catch (RuntimeException e) {
-                // whenComplete would otherwise swallow this into the discarded future.
+                // whenComplete would otherwise swallow this.
                 plugin.getLogger().log(Level.SEVERE, "Admin command failed for " + target.id(), e);
             }
         });

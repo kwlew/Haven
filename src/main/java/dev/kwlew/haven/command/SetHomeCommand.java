@@ -1,15 +1,15 @@
 package dev.kwlew.haven.command;
 
-import dev.kwlew.haven.config.HavenConfig;
-import dev.kwlew.haven.home.Home;
-import dev.kwlew.haven.home.HomeLimits;
-import dev.kwlew.haven.home.HomeManager;
-import dev.kwlew.haven.home.PlayerHomes;
-import dev.kwlew.haven.home.WorldNames;
-import dev.kwlew.haven.home.WorldRules;
-import dev.kwlew.haven.message.Messages;
-import dev.kwlew.haven.sound.HavenSound;
-import dev.kwlew.haven.sound.Sounds;
+import dev.kwlew.haven.managers.config.HavenConfig;
+import dev.kwlew.haven.managers.home.Home;
+import dev.kwlew.haven.managers.home.HomeLimits;
+import dev.kwlew.haven.managers.home.HomeManager;
+import dev.kwlew.haven.managers.home.PlayerHomes;
+import dev.kwlew.haven.managers.home.WorldNames;
+import dev.kwlew.haven.managers.home.WorldRules;
+import dev.kwlew.haven.managers.message.Messages;
+import dev.kwlew.haven.managers.sound.HavenSound;
+import dev.kwlew.haven.managers.sound.Sounds;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -18,7 +18,6 @@ import java.util.OptionalInt;
 
 public class SetHomeCommand extends PlayerCommand {
 
-    /** Name used when /sethome is run with no argument. */
     public static final String DEFAULT_HOME = "home";
 
     private final HavenConfig config;
@@ -78,8 +77,7 @@ public class SetHomeCommand extends PlayerCommand {
         int limit = limits.limitFor(player);
         boolean exists = homes.has(name);
 
-        // Only new homes count against the limit, so a player over a lowered cap can still move
-        // the homes they already have.
+        // Only new homes count, so a player over a lowered cap can still move existing ones.
         if (!exists && homes.count() >= limit) {
             messages.send(player, "home.limit-reached",
                     Placeholder.unparsed("count", Integer.toString(homes.count())),
@@ -88,8 +86,8 @@ public class SetHomeCommand extends PlayerCommand {
             return;
         }
 
-        // Before the confirmation, so nobody is asked to confirm a move that is then refused. Runs
-        // again on the confirming call, since the config can be reloaded in between.
+        // Before the confirmation, so nobody confirms a move that is then refused; re-run on the confirming call since
+        // config can reload.
         OptionalInt worldCap = worldRules.capFor(player, world);
 
         if (WorldRules.exceedsCap(worldCap, homes.all(), name, world)) {
@@ -113,7 +111,7 @@ public class SetHomeCommand extends PlayerCommand {
         Home placed = Home.of(name, player.getLocation());
         Home existing = homes.get(name);
 
-        // Moving a home keeps who it is shared with; the recipients' hints stay valid.
+        // Keeps shares; recipients' hints stay valid.
         homes.put(existing == null ? placed : existing.movedTo(placed));
         homeManager.persist(homes);
         sounds.play(player, HavenSound.HOME_SET);

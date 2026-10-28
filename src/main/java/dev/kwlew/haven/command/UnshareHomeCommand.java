@@ -1,12 +1,12 @@
 package dev.kwlew.haven.command;
 
-import dev.kwlew.haven.home.Home;
-import dev.kwlew.haven.home.HomeManager;
-import dev.kwlew.haven.home.PlayerHomes;
-import dev.kwlew.haven.message.Messages;
-import dev.kwlew.haven.share.HomeSharing;
-import dev.kwlew.haven.sound.HavenSound;
-import dev.kwlew.haven.sound.Sounds;
+import dev.kwlew.haven.managers.home.Home;
+import dev.kwlew.haven.managers.home.HomeManager;
+import dev.kwlew.haven.managers.home.PlayerHomes;
+import dev.kwlew.haven.managers.message.Messages;
+import dev.kwlew.haven.managers.share.HomeSharing;
+import dev.kwlew.haven.managers.sound.HavenSound;
+import dev.kwlew.haven.managers.sound.Sounds;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -14,9 +14,6 @@ import org.bukkit.entity.Player;
 
 import java.util.UUID;
 
-/**
- * {@code /unsharehome <home> <player>}: the inverse of {@link ShareHomeCommand}.
- */
 public class UnshareHomeCommand extends PlayerCommand {
 
     private final HomeManager homeManager;
@@ -93,12 +90,7 @@ public class UnshareHomeCommand extends PlayerCommand {
         }
     }
 
-    /**
-     * Which of the home's recipients the typed name means, or {@code null}. Matches against the
-     * recipients themselves rather than asking the server who the name is: a player who has not
-     * been seen for a while can drop out of the server's name cache, and that must not leave the
-     * owner unable to revoke their access.
-     */
+    /** Matches the home's own recipients, not the server name cache, which can forget players and block revoking. */
     private UUID recipient(Home home, String typed) {
         PlayerLookup.Target known = lookup.find(typed);
 

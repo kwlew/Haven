@@ -1,8 +1,8 @@
 package dev.kwlew.haven.command;
 
-import dev.kwlew.haven.gui.HomesMenus;
-import dev.kwlew.haven.home.HomeManager;
-import dev.kwlew.haven.message.Messages;
+import dev.kwlew.haven.managers.gui.HomesMenus;
+import dev.kwlew.haven.managers.home.HomeManager;
+import dev.kwlew.haven.managers.message.Messages;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -12,11 +12,8 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * The {@code /haven} root: opens the homes menu, or dispatches to a subcommand.
- * <p>
- * The root itself is open to everyone, because {@code help} is. Each subcommand is gated by its own
- * permission, checked here for the Bukkit path; the Brigadier adapter hides the literals a sender
- * may not use but routes through this class too, so a refusal is decided in one place.
+ * The {@code /haven} root: opens the menu or dispatches to a subcommand, each gated by its own permission (shared with
+ * the Brigadier adapter).
  */
 public class HavenCommand {
 
@@ -40,7 +37,6 @@ public class HavenCommand {
         this.lookup = lookup;
     }
 
-    /** The subcommands in the order they are offered, each with the permission that gates it. */
     private enum Sub {
         HELP("help", null),
         VERSION("version", AdminCommand.VERSION_PERMISSION),
@@ -121,9 +117,6 @@ public class HavenCommand {
         };
     }
 
-    /**
-     * Bukkit-path completion: the subcommands the sender holds, then a player, then a home.
-     */
     public List<String> tabComplete(CommandSender sender, String[] args) {
         if (args.length == 1) {
             String typed = args[0].toLowerCase(Locale.ROOT);
@@ -153,16 +146,11 @@ public class HavenCommand {
         return List.of();
     }
 
-    /** Online player names for {@code <player>}; shared with the Brigadier adapter. */
     public List<String> suggestPlayers(String typed) {
         return lookup.onlineNames(typed);
     }
 
-    /**
-     * The target's home names, but only when they are online and so already in memory. Completion
-     * can run off the main thread and must never read a file, so an offline target simply gets no
-     * suggestions - the command itself still works if the name is typed out.
-     */
+    /** Online targets only: completion must never read a file. */
     public List<String> suggestHomes(String playerName, String typed) {
         Player target = lookup.online(playerName);
 

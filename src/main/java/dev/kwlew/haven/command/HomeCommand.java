@@ -1,15 +1,15 @@
 package dev.kwlew.haven.command;
 
-import dev.kwlew.haven.home.Home;
-import dev.kwlew.haven.home.HomeManager;
-import dev.kwlew.haven.home.PlayerHomes;
-import dev.kwlew.haven.home.WorldNames;
-import dev.kwlew.haven.home.WorldRules;
-import dev.kwlew.haven.message.Messages;
-import dev.kwlew.haven.share.SharedVisits;
-import dev.kwlew.haven.sound.HavenSound;
-import dev.kwlew.haven.sound.Sounds;
-import dev.kwlew.haven.teleport.TeleportService;
+import dev.kwlew.haven.managers.home.Home;
+import dev.kwlew.haven.managers.home.HomeManager;
+import dev.kwlew.haven.managers.home.PlayerHomes;
+import dev.kwlew.haven.managers.home.WorldNames;
+import dev.kwlew.haven.managers.home.WorldRules;
+import dev.kwlew.haven.managers.message.Messages;
+import dev.kwlew.haven.managers.share.SharedVisits;
+import dev.kwlew.haven.managers.sound.HavenSound;
+import dev.kwlew.haven.managers.sound.Sounds;
+import dev.kwlew.haven.managers.teleport.TeleportService;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -53,8 +53,7 @@ public class HomeCommand extends PlayerCommand {
             return;
         }
 
-        // Before the empty-list check: someone with no homes of their own can still be a guest.
-        // Home names can't contain ':', so this can never be one of the player's own homes.
+        // Before the empty-list check, since a player with no homes can still be a guest. Home names can't contain ':'.
         int separator = rawName == null ? -1 : rawName.indexOf(':');
 
         if (separator >= 0) {
@@ -84,7 +83,7 @@ public class HomeCommand extends PlayerCommand {
             target = defaultHome(homes);
 
             if (target == null) {
-                // Ambiguous - show the list rather than guessing which home they meant.
+                // Ambiguous: show the list rather than guessing.
                 homesCommand.sendList(player);
                 return;
             }
@@ -102,8 +101,8 @@ public class HomeCommand extends PlayerCommand {
     }
 
     /**
-     * Resolves bare {@code /home}. A home literally named "home" wins before the only-one-home
-     * shortcut, so behaviour doesn't change for a player the moment they add a second home.
+     * A home literally named "home" wins over the only-one-home shortcut, so adding a second home doesn't change
+     * behaviour.
      */
     private Home defaultHome(PlayerHomes homes) {
         Home named = homes.get(SetHomeCommand.DEFAULT_HOME);

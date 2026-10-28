@@ -1,4 +1,3 @@
-// dev/kwlew/kernel/Registry.java
 package dev.kwlew.haven.kernel;
 
 import dev.kwlew.haven.exceptions.CircularDependencyException;
@@ -10,20 +9,9 @@ import java.lang.reflect.Modifier;
 import java.util.*;
 
 /**
- * A minimal reflection-based dependency injection container.
- * <p>
- * Not thread-safe: {@link #register}, {@link #resolve}, and {@link #bind} are only ever called
- * from {@link Bootstrap} during {@code onEnable}, on the main server thread. Concurrent calls
- * (e.g. from an async task resolving a not-yet-constructed type) are unsupported. Once
- * {@link #seal()} has been called no further types can be constructed, which keeps late
- * off-thread callers (login listeners run on Netty threads) from mutating {@link #instances}.
- * <p>
- * A single instance may be reachable under several keys - {@link #bind} deliberately stores one
- * object under both an abstraction and its implementation. {@link #instances} is therefore only a
- * lookup table; the canonical iteration order lives in {@link #ordered}, which holds each distinct
- * instance exactly once at its <em>creation</em> position. That is the only defensible ordering:
- * an object is always constructed after its dependencies, so creation order is a valid
- * {@code init()}/{@code start()} sequence and its exact reverse a valid {@code shutdown()} order.
+ * Minimal reflection-based DI container. Not thread-safe: used only from {@link Bootstrap} on the main thread
+ * during {@code onEnable}, then {@link #seal() sealed}. {@link #getAll()} yields each instance once in creation
+ * order (a valid start order; its reverse a valid shutdown order), even when it is bound under several keys.
  */
 public class Registry {
 
@@ -38,20 +26,12 @@ public class Registry {
         track(instance);
     }
 
-    /**
-     * Records an instance at its creation position, ignoring instances already seen so an object
-     * reachable under several keys is still iterated exactly once by {@link #getAll()}.
-     */
     private void track(Object instance) {
         if (instance != null && tracked.add(instance)) {
             ordered.add(instance);
         }
     }
 
-    /**
-     * Closes the registry to further construction. Lookups of already-registered types keep
-     * working; anything that would create a new instance throws instead.
-     */
     public void seal() {
         this.sealed = true;
     }
@@ -91,13 +71,10 @@ public class Registry {
             return instance;
 
         } catch (CircularDependencyException | UnresolvedDependencyException e) {
-            // Already a meaningful, terminal error from a nested resolveDependency() call -
-            // propagate it as-is instead of burying it under a "Failed to create" wrapper
-            // per stack frame.
+            // Terminal error from a nested resolve; don't wrap it per stack frame.
             throw e;
         } catch (InvocationTargetException e) {
-            // The constructor itself threw; surface its cause directly instead of the
-            // reflection-only wrapper, so callers see what actually broke.
+            // Surface the constructor's own cause, not the reflection wrapper.
             throw new RuntimeException("Failed to create " + type.getName(), e.getCause());
         } catch (Exception e) {
             throw new RuntimeException("Failed to create " + type.getName(), e);
@@ -137,18 +114,10 @@ public class Registry {
                 .orElseThrow(() -> new RuntimeException("No constructor found for " + type.getName()));
     }
 
-    /**
-     * Returns every distinct instance once, in creation order. An instance registered under
-     * several keys (see {@link #bind}) still appears exactly once.
-     */
     public List<Object> getAll() {
         return List.copyOf(ordered);
     }
 
-    /**
-     * Returns all instances in reverse creation order, for safe teardown
-     * (dependents shut down before the dependencies they were built from).
-     */
     public List<Object> getAllReversed() {
         List<Object> reversed = new ArrayList<>(ordered);
         Collections.reverse(reversed);
@@ -172,11 +141,7 @@ public class Registry {
         return type.isInterface() || Modifier.isAbstract(type.getModifiers());
     }
 
-    /**
-     * Makes {@code abstraction} resolve to the (single) instance of {@code implementation}. The
-     * instance ends up under both keys on purpose; {@link #track} keeps it out of {@link #ordered}
-     * a second time so its lifecycle hooks still run exactly once.
-     */
+    /** The instance ends up under both keys; {@link #track} keeps it out of {@link #ordered} twice. */
     public <T> void bind(Class<T> abstraction, Class<? extends T> implementation) {
         instances.put(abstraction, resolve(implementation));
     }

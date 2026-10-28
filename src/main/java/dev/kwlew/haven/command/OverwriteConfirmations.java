@@ -1,7 +1,7 @@
 package dev.kwlew.haven.command;
 
-import dev.kwlew.haven.config.HavenConfig;
 import dev.kwlew.haven.kernel.Inject;
+import dev.kwlew.haven.managers.config.HavenConfig;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -9,13 +9,8 @@ import java.util.UUID;
 import java.util.function.IntSupplier;
 
 /**
- * Tracks pending "/sethome on an existing home" confirmations.
- * <p>
- * The pending entry records <em>which</em> home is awaiting confirmation. Without that,
- * {@code /sethome base} followed by {@code /sethome spawn} would read as a confirmation and
- * silently move the wrong home.
- * <p>
- * Main-thread only; commands are the only caller.
+ * Pending "/sethome over an existing home" confirmations; main-thread only. Tracks which home, so confirming a
+ * different one doesn't move the wrong home.
  */
 public class OverwriteConfirmations {
 
@@ -27,18 +22,11 @@ public class OverwriteConfirmations {
         this(config::confirmTimeoutSeconds);
     }
 
-    /**
-     * Takes the timeout as a supplier rather than a {@link HavenConfig} so the expiry logic can be
-     * driven directly from tests. Still a supplier, not an int, so {@code /haven reload} applies.
-     */
+    /** A supplier (not an int) so {@code /haven reload} applies; tests drive expiry directly. */
     OverwriteConfirmations(IntSupplier timeoutSeconds) {
         this.timeoutSeconds = timeoutSeconds;
     }
 
-    /**
-     * Returns true when this call confirms a matching pending request. Otherwise records a new
-     * request and returns false, meaning the caller should prompt.
-     */
     public boolean confirm(UUID player, String homeName) {
         return confirmAt(player, homeName, System.currentTimeMillis());
     }
